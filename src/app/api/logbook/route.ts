@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createLogbookEntry, listLogbookEntries } from "@/lib/db/logbook";
-import { logbookSchema } from "@/lib/validators";
+import { gsheet } from "@/lib/gsheet";
 import { auth } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const entries = await listLogbookEntries("bunga");
-    return NextResponse.json(entries);
+    const data = await gsheet.call("log_list", { koasId: "bunga" });
+    return NextResponse.json(data ?? []);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal memuat logbook" }, { status: 500 });
@@ -21,25 +15,14 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const parsed = logbookSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Data tidak valid", details: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const entry = await createLogbookEntry(parsed.data);
-    return NextResponse.json(entry, { status: 201 });
+    const result = await gsheet.call("log_create", body);
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Gagal menyimpan logbook" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal simpan logbook" }, { status: 500 });
   }
 }
 

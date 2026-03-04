@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSchedule, setSchedule, getWeekSchedules } from "@/lib/db/schedules";
+import { gsheet } from "@/lib/gsheet";
 import { scheduleSchema } from "@/lib/validators";
 import { auth } from "@/lib/auth";
 
@@ -10,29 +10,24 @@ export async function GET(req: NextRequest) {
     const week = searchParams.get("week");
 
     if (week) {
-      // Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone shift
-      const [wy, wm, wd] = week.split("-").map(Number);
-      const startDate = new Date(wy, wm - 1, wd, 0, 0, 0, 0);
-      const schedules = await getWeekSchedules(startDate);
-      return NextResponse.json(schedules);
+      const data = await gsheet.call("sch_get_week", { koasId: "bunga", weekStart: week });
+      return NextResponse.json(data ?? []);
     }
 
     if (date) {
-      const schedule = await getSchedule(date);
-      return NextResponse.json(schedule);
+      const data = await gsheet.call("sch_get", { koasId: "bunga", date });
+      return NextResponse.json(data ?? { date, slots: [] });
     }
 
-    // Default: get current week starting from Monday (local time)
+    // Default: current week starting Monday
     const today = new Date();
     const day = today.getDay();
-    const monday = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() - (day === 0 ? 6 : day - 1),
-      0, 0, 0, 0
-    );
-    const schedules = await getWeekSchedules(monday);
-    return NextResponse.json(schedules);
+    const mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (day === 0 ? 6 : day - 1), 0, 0, 0, 0);
+    const y = mon.getFullYear();
+    const m = String(mon.getMonth() + 1).padStart(2, "0");
+    const d = String(mon.getDate()).padStart(2, "0");
+    const data = await gsheet.call("sch_get_week", { koasId: "bunga", weekStart: `${y}-${m}-${d}` });
+    return NextResponse.json(data ?? []);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal memuat jadwal" }, { status: 500 });
@@ -42,23 +37,20 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
     const parsed = scheduleSchema.safeParse(body);
-
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Data tidak valid", details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Data tidak valid", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    await setSchedule(parsed.data.date, parsed.data.slots);
-    const schedule = await getSchedule(parsed.data.date);
-    return NextResponse.json(schedule, { status: 201 });
+    const result = await gsheet.call("sch_set", {
+      koasId: "bunga",
+      date: parsed.data.date,
+      slots: parsed.data.slots,
+    });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal menyimpan jadwal" }, { status: 500 });

@@ -1,34 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAppointment, listAppointments } from "@/lib/db/appointments";
-import { appointmentSchema } from "@/lib/validators";
+import { gsheet } from "@/lib/gsheet";
 
 export async function GET() {
   try {
-    const appointments = await listAppointments();
-    return NextResponse.json(appointments);
+    const data = await gsheet.call("apt_list");
+    return NextResponse.json(data ?? []);
   } catch (error) {
-    console.error("Error listing appointments:", error);
-    return NextResponse.json({ error: "Gagal memuat data" }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: "Gagal memuat appointments" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const parsed = appointmentSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Data tidak valid", details: parsed.error.flatten() },
-        { status: 400 }
-      );
+    const result = await gsheet.call("apt_create", body);
+    if (result && typeof result === "object" && "error" in result) {
+      return NextResponse.json(result, { status: 400 });
     }
-
-    const appointment = await createAppointment(parsed.data);
-    return NextResponse.json(appointment, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Gagal membuat janji";
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error(error);
+    return NextResponse.json({ error: "Gagal membuat appointment" }, { status: 500 });
   }
 }
-
