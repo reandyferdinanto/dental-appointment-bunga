@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🦷 Dental Koas — drg. Natasya Bunga Maureen
 
-## Getting Started
+Aplikasi web interaktif untuk dokter gigi koas **Natasya Bunga Maureen**. Platform ini memudahkan pasien untuk booking janji temu dan membantu drg. Bunga mengelola jadwal, appointment, serta mencatat logbook tindakan medis.
 
-First, run the development server:
+---
 
+## ✨ Fitur Utama
+
+### Area Publik (Pasien)
+- 🏠 **Landing Page** — profil, layanan, dan cara booking
+- 📅 **Jadwal Praktik** — lihat slot waktu tersedia per minggu
+- 📝 **Booking Online** — form 3-langkah: tanggal → waktu → data diri
+
+### Dashboard (drg. Bunga) — Login Required
+- 📊 **Overview** — statistik pasien hari ini, janji temu mendatang
+- 🗂️ **Manajemen Janji Temu** — konfirmasi, selesaikan, atau batalkan booking
+- 🗓️ **Kelola Jadwal** — kalender mingguan interaktif, tambah/hapus slot
+- 📒 **E-Logbook** — catat tindakan medis dengan tingkat kompetensi
+
+---
+
+## 🛠 Tech Stack
+
+| Layer | Teknologi |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Styling | Tailwind CSS v4 |
+| Database | Upstash Redis |
+| Auth | NextAuth.js v5 |
+| Icons | Lucide React |
+| Validasi | Zod |
+
+---
+
+## 🚀 Cara Menjalankan
+
+### 1. Install dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Setup `.env.local`
+```env
+UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-redis-token
+NEXTAUTH_SECRET=your-random-secret
+NEXTAUTH_URL=http://localhost:3000
+ADMIN_EMAIL=bunga@dentist.com
+ADMIN_PASSWORD=admin123
+```
+> **Tanpa Redis:** App otomatis pakai in-memory store untuk development.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Jalankan dev server
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Seed demo data (opsional)
+```bash
+curl -X POST http://localhost:3000/api/seed
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🔐 Login Dashboard
+- **Email:** `bunga@dentist.com`
+- **Password:** `admin123`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🗺 Halaman
+| URL | Deskripsi |
+|---|---|
+| `/` | Landing page |
+| `/jadwal` | Jadwal praktik publik |
+| `/booking` | Form booking pasien |
+| `/login` | Login dashboard |
+| `/dashboard` | Overview (auth) |
+| `/dashboard/appointments` | Kelola janji temu |
+| `/dashboard/schedules` | Kelola jadwal |
+| `/dashboard/logbook` | E-Logbook |
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🚢 Deploy ke Vercel
+1. Push ke GitHub → import di vercel.com
+2. Set env vars di Vercel Dashboard
+3. Buat Redis gratis di [upstash.com](https://upstash.com)

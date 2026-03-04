@@ -1,0 +1,252 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Search,
+  Filter,
+  Phone,
+  FileText,
+  Loader2,
+} from "lucide-react";
+
+interface Appointment {
+  id: string;
+  patientName: string;
+  patientPhone: string;
+  patientEmail?: string;
+  date: string;
+  time: string;
+  complaint: string;
+  status: "pending" | "confirmed" | "completed" | "cancelled";
+  createdAt: string;
+}
+
+const statusColors: Record<string, string> = {
+  pending:   "border-[#FFDBB6] text-[#b87333]",
+  confirmed: "border-[#5D688A]/30 text-[#5D688A]",
+  completed: "border-green-200 text-[#3aaa7c]",
+  cancelled: "border-[#F7A5A5]/50 text-[#c0504f]",
+};
+
+const statusBg: Record<string, string> = {
+  pending:   "rgba(255,219,182,0.35)",
+  confirmed: "rgba(93,104,138,0.10)",
+  completed: "rgba(110,198,160,0.18)",
+  cancelled: "rgba(247,165,165,0.20)",
+};
+
+const statusLabels: Record<string, string> = {
+  pending: "Menunggu",
+  confirmed: "Dikonfirmasi",
+  completed: "Selesai",
+  cancelled: "Dibatalkan",
+};
+
+const monthNames = [
+  "Jan","Feb","Mar","Apr","Mei","Jun",
+  "Jul","Agu","Sep","Okt","Nov","Des",
+];
+
+export default function AppointmentsPage() {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  async function fetchAppointments() {
+    try {
+      const res = await fetch("/api/appointments");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setAppointments(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  }
+
+  async function updateStatus(id: string, status: string) {
+    setUpdating(id);
+    try {
+      const res = await fetch(`/api/appointments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setAppointments((prev) =>
+          prev.map((a) => (a.id === id ? updated : a))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setUpdating(null);
+  }
+
+  const filtered = appointments.filter((a) => {
+    if (filter !== "all" && a.status !== filter) return false;
+    if (search && !a.patientName.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-extrabold text-[#3a3f52]">Janji Temu Pasien</h1>
+        <p className="text-sm text-[#5D688A]/65 mt-1">Kelola dan pantau semua janji temu pasien Anda</p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5D688A]/40" />
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama pasien..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-sm outline-none transition-all"
+            style={{ background: "rgba(255,255,255,0.65)", border: "1.5px solid rgba(93,104,138,0.15)", color: "#3a3f52" }}
+            onFocus={e => e.currentTarget.style.borderColor = "#F7A5A5"}
+            onBlur={e => e.currentTarget.style.borderColor = "rgba(93,104,138,0.15)"}
+          />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Filter className="w-4 h-4 text-[#5D688A]/50" />
+          {["all", "pending", "confirmed", "completed", "cancelled"].map((s) => (
+            <button key={s} onClick={() => setFilter(s)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02]"
+              style={filter === s ? {
+                background: "linear-gradient(135deg, #5D688A, #7a88b0)",
+                color: "white",
+                boxShadow: "0 4px 12px rgba(93,104,138,0.3)"
+              } : {
+                background: "rgba(255,255,255,0.6)",
+                border: "1px solid rgba(93,104,138,0.15)",
+                color: "#5D688A"
+              }}>
+              {s === "all" ? "Semua" : statusLabels[s]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="glass rounded-2xl p-5 animate-pulse"
+              style={{ border: "1px solid rgba(255,255,255,0.7)" }}>
+              <div className="flex gap-4">
+                <div className="w-14 h-14 rounded-2xl" style={{ background: "rgba(93,104,138,0.08)" }} />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 rounded-lg w-1/4" style={{ background: "rgba(93,104,138,0.08)" }} />
+                  <div className="h-3 rounded-lg w-1/3" style={{ background: "rgba(93,104,138,0.06)" }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="glass text-center py-16 rounded-2xl"
+          style={{ border: "1px solid rgba(255,255,255,0.7)" }}>
+          <Calendar className="w-12 h-12 mx-auto mb-3 text-[#F7A5A5] opacity-50" />
+          <p className="font-bold text-[#3a3f52]">Belum ada janji temu</p>
+          <p className="text-sm text-[#5D688A]/55 mt-1">Janji temu dari pasien akan muncul di sini</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((apt) => {
+            const d = new Date(apt.date);
+            return (
+              <div key={apt.id}
+                className="glass rounded-2xl p-5 hover:scale-[1.005] transition-all duration-200"
+                style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 2px 12px rgba(93,104,138,0.06)" }}>
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                  {/* Date badge */}
+                  <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
+                    style={{ background: "linear-gradient(135deg, rgba(247,165,165,0.2), rgba(255,219,182,0.3))", border: "1px solid rgba(247,165,165,0.3)" }}>
+                    <span className="text-[9px] font-bold" style={{ color: "#F7A5A5" }}>{monthNames[d.getMonth()]}</span>
+                    <span className="text-lg font-extrabold text-[#3a3f52] -mt-0.5">{d.getDate()}</span>
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <h3 className="font-bold text-[#3a3f52]">{apt.patientName}</h3>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-[#5D688A]/60">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-[#F7A5A5]" /> {apt.time}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-[#FFDBB6]" /> {apt.patientPhone}
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-[10px] px-2.5 py-1 rounded-full font-semibold border ${statusColors[apt.status]}`}
+                        style={{ background: statusBg[apt.status] }}>
+                        {statusLabels[apt.status]}
+                      </span>
+                    </div>
+
+                    <div className="flex items-start gap-1.5 mt-2">
+                      <FileText className="w-3.5 h-3.5 text-[#5D688A]/40 mt-0.5 shrink-0" />
+                      <p className="text-xs text-[#5D688A]/60 leading-relaxed">{apt.complaint}</p>
+                    </div>
+
+                    {/* Actions */}
+                    {apt.status !== "cancelled" && apt.status !== "completed" && (
+                      <div className="flex items-center gap-2 mt-3">
+                        {apt.status === "pending" && (
+                          <button onClick={() => updateStatus(apt.id, "confirmed")}
+                            disabled={updating === apt.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] disabled:opacity-50"
+                            style={{ background: "rgba(93,104,138,0.12)", color: "#5D688A" }}>
+                            {updating === apt.id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <CheckCircle2 className="w-3 h-3" />}
+                            Konfirmasi
+                          </button>
+                        )}
+                        {(apt.status === "pending" || apt.status === "confirmed") && (
+                          <>
+                            <button onClick={() => updateStatus(apt.id, "completed")}
+                              disabled={updating === apt.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] disabled:opacity-50"
+                              style={{ background: "rgba(110,198,160,0.18)", color: "#3aaa7c" }}>
+                              <CheckCircle2 className="w-3 h-3" />
+                              Selesai
+                            </button>
+                            <button onClick={() => updateStatus(apt.id, "cancelled")}
+                              disabled={updating === apt.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] disabled:opacity-50"
+                              style={{ background: "rgba(247,165,165,0.2)", color: "#c0504f" }}>
+                              <XCircle className="w-3 h-3" />
+                              Batalkan
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
