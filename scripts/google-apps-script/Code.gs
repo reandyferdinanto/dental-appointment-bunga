@@ -66,59 +66,79 @@ var SCH_COLS = {
 
 // ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
-function doPost(e) {
+/**
+ * doGet handles ALL requests.
+ *
+ * Clients send:  GET ?payload=<urlEncoded JSON>
+ * This avoids the Apps Script POST→GET redirect that drops the request body.
+ *
+ * Fallback: if no payload param, return health-check JSON.
+ */
+function doGet(e) {
   try {
-    var body   = JSON.parse(e.postData.contents);
+    var rawPayload = (e && e.parameter && e.parameter.payload) ? e.parameter.payload : null;
+    if (!rawPayload) {
+      return jsonResponse({ status: "ok", app: "drg-bunga-db", version: "1.0" });
+    }
+
+    var body   = JSON.parse(rawPayload);
     var token  = body.token || "";
     var action = body.action || "";
 
     // Auth check (skip if SECRET_TOKEN not set)
     if (SECRET_TOKEN && token !== SECRET_TOKEN) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
+      return jsonResponse({ error: "Unauthorized" });
     }
 
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
     // ── Appointments ──────────────────────────────────
-    if (action === "apt_create")           return jsonResponse(aptCreate(ss, body));
-    if (action === "apt_list")             return jsonResponse(aptList(ss));
-    if (action === "apt_get")              return jsonResponse(aptGet(ss, body.id));
-    if (action === "apt_update_status")    return jsonResponse(aptUpdateStatus(ss, body.id, body.status));
-    if (action === "apt_delete")           return jsonResponse(aptDelete(ss, body.id));
+    if (action === "apt_create")        return jsonResponse(aptCreate(ss, body));
+    if (action === "apt_list")          return jsonResponse(aptList(ss));
+    if (action === "apt_get")           return jsonResponse(aptGet(ss, body.id));
+    if (action === "apt_update_status") return jsonResponse(aptUpdateStatus(ss, body.id, body.status));
+    if (action === "apt_delete")        return jsonResponse(aptDelete(ss, body.id));
 
     // ── Logbook ───────────────────────────────────────
-    if (action === "log_create")           return jsonResponse(logCreate(ss, body));
-    if (action === "log_list")             return jsonResponse(logList(ss, body.koasId));
-    if (action === "log_delete")           return jsonResponse(logDelete(ss, body.id));
+    if (action === "log_create")        return jsonResponse(logCreate(ss, body));
+    if (action === "log_list")          return jsonResponse(logList(ss, body.koasId));
+    if (action === "log_delete")        return jsonResponse(logDelete(ss, body.id));
 
     // ── Schedules ─────────────────────────────────────
-    if (action === "sch_set")              return jsonResponse(schSet(ss, body.koasId, body.date, body.slots));
-    if (action === "sch_get")              return jsonResponse(schGet(ss, body.koasId, body.date));
-    if (action === "sch_get_week")         return jsonResponse(schGetWeek(ss, body.koasId, body.weekStart));
-    if (action === "sch_remove_slot")      return jsonResponse(schRemoveSlot(ss, body.koasId, body.date, body.time));
+    if (action === "sch_set")           return jsonResponse(schSet(ss, body.koasId, body.date, body.slots));
+    if (action === "sch_get")           return jsonResponse(schGet(ss, body.koasId, body.date));
+    if (action === "sch_get_week")      return jsonResponse(schGetWeek(ss, body.koasId, body.weekStart));
+    if (action === "sch_remove_slot")   return jsonResponse(schRemoveSlot(ss, body.koasId, body.date, body.time));
 
     // ── Seed ──────────────────────────────────────────
-    if (action === "seed")                 return jsonResponse(seedData(ss));
+    if (action === "seed")              return jsonResponse(seedData(ss));
 
-    return jsonResponse({ error: "Unknown action: " + action }, 400);
+    return jsonResponse({ error: "Unknown action: " + action });
 
   } catch (err) {
-    return jsonResponse({ error: err.toString() }, 500);
+    return jsonResponse({ error: err.toString() });
   }
 }
 
-// Allow GET for health check
-function doGet(e) {
-  return jsonResponse({ status: "ok", app: "drg-bunga-db", version: "1.0" });
+// Keep doPost as fallback (some clients may still POST directly to the exec URL)
+function doPost(e) {
+  try {
+    var body = JSON.parse(e.postData.contents);
+    // Reuse doGet logic by injecting into parameter
+    e.parameter = e.parameter || {};
+    e.parameter.payload = e.postData.contents;
+    return doGet(e);
+  } catch (err) {
+    return jsonResponse({ error: err.toString() });
+  }
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
-function jsonResponse(data, code) {
-  var output = ContentService
+function jsonResponse(data) {
+  return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
-  return output;
 }
 
 function generateId() {
@@ -410,15 +430,15 @@ function schGet(ss, koasId, date) {
 
 function schGetWeek(ss, koasId, weekStart) {
   var results = [];
-  var parts = weekStart.split("-").map(Number);
-  var base = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+  // Parse YYYY-MM-DD as LOCAL date (not UTC) to avoid day-shift
+  var parts = weekStart.split("-");
+  var base = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
   for (var i = 0; i < 7; i++) {
     var d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 0, 0, 0, 0);
     var y = d.getFullYear();
-    var mo = String(d.getMonth() + 1).padStart ? String(d.getMonth() + 1) : ("0" + (d.getMonth() + 1)).slice(-2);
-    var dy = d.getDate() < 10 ? "0" + d.getDate() : String(d.getDate());
-    mo = mo.length === 1 ? "0" + mo : mo;
-    var dateStr = y + "-" + mo + "-" + dy;
+    var mo = d.getMonth() + 1;
+    var dy = d.getDate();
+    var dateStr = y + "-" + (mo < 10 ? "0" + mo : "" + mo) + "-" + (dy < 10 ? "0" + dy : "" + dy);
     results.push(schGet(ss, koasId, dateStr));
   }
   return results;
@@ -457,53 +477,46 @@ function schAddSlot(ss, koasId, date, time) {
   return { success: true };
 }
 
-// ── SEED DATA ─────────────────────────────────────────────────────────────────
-
 function seedData(ss) {
   // Create sheets with headers
   getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
   getOrCreateSheet(ss, SHEET_LOGBOOK, LOG_HEADERS);
   getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
 
-  // Seed schedules: next 14 days (skip Sundays)
   var slots = ["09:00","09:30","10:00","10:30","11:00","13:00","13:30","14:00","14:30","15:00"];
   var today = new Date();
+
+  function fmtDate(d) {
+    var mo = d.getMonth() + 1;
+    var dy = d.getDate();
+    return d.getFullYear() + "-" + (mo < 10 ? "0" + mo : "" + mo) + "-" + (dy < 10 ? "0" + dy : "" + dy);
+  }
+
+  // Seed schedules: next 14 days (skip Sundays)
   for (var i = 0; i < 14; i++) {
     var d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i, 0, 0, 0, 0);
     if (d.getDay() === 0) continue; // skip Sunday
-    var mo = d.getMonth() + 1;
-    var dy = d.getDate();
-    var dateStr = d.getFullYear() + "-" + (mo < 10 ? "0" + mo : mo) + "-" + (dy < 10 ? "0" + dy : dy);
-    schSet(ss, "bunga", dateStr, slots);
+    schSet(ss, "bunga", fmtDate(d), slots);
   }
 
-  // Seed 1 sample appointment
+  // Seed 1 sample appointment (tomorrow)
   var tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  var tom = tomorrow;
-  var tmo = tom.getMonth() + 1;
-  var tdy = tom.getDate();
-  var tomorrowStr = tom.getFullYear() + "-" + (tmo < 10 ? "0" + tmo : tmo) + "-" + (tdy < 10 ? "0" + tdy : tdy);
-
   aptCreate(ss, {
     patientName: "Budi Santoso",
     patientPhone: "081234567890",
     patientEmail: "",
     koasId: "bunga",
-    date: tomorrowStr,
+    date: fmtDate(tomorrow),
     time: "09:00",
     complaint: "Gigi geraham kiri bawah berlubang dan sakit saat makan",
   });
 
-  // Seed 1 sample logbook
+  // Seed 1 sample logbook (yesterday)
   var yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-  var ym = yesterday.getMonth() + 1;
-  var yd = yesterday.getDate();
-  var yesterdayStr = yesterday.getFullYear() + "-" + (ym < 10 ? "0" + ym : ym) + "-" + (yd < 10 ? "0" + yd : yd);
-
   logCreate(ss, {
     koasId: "bunga",
     appointmentId: "",
-    date: yesterdayStr,
+    date: fmtDate(yesterday),
     patientInitials: "Tn. BS",
     procedureType: "Penambalan Komposit",
     toothNumber: "36",

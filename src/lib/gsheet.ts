@@ -1,6 +1,10 @@
 /**
  * lib/gsheet.ts — Google Sheets Database Client
- * Replaces Redis. All calls go to the Apps Script Web App.
+ *
+ * ⚠️  Apps Script Web Apps redirect POST → GET (302), which drops the body.
+ *     We work around this by encoding the full JSON payload as a `payload`
+ *     query-string parameter on a GET request — Apps Script receives it via
+ *     e.parameter.payload in doGet(), no body loss.
  *
  * Required env vars:
  *   GSHEET_API_URL  — Web App URL dari Apps Script deployment
@@ -11,18 +15,21 @@ const API_URL = process.env.GSHEET_API_URL ?? "";
 const SECRET  = process.env.GSHEET_SECRET  ?? "";
 
 class GSheetDB {
-  /** POST to the Apps Script Web App endpoint */
   async call(action: string, body: Record<string, unknown> = {}): Promise<unknown> {
     if (!API_URL) {
       console.warn("[gsheet] GSHEET_API_URL not set — data tidak akan tersimpan");
       return null;
     }
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, token: SECRET, ...body }),
-      redirect: "follow", // Apps Script 302-redirects POST
+
+    // Encode the full payload as a query param to survive the Apps Script redirect
+    const payload = JSON.stringify({ action, token: SECRET, ...body });
+    const url = `${API_URL}?payload=${encodeURIComponent(payload)}`;
+
+    const res = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
     });
+
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`GSheet API error ${res.status}: ${text}`);
@@ -36,4 +43,3 @@ export const gsheet = new GSheetDB();
 if (!API_URL && process.env.NODE_ENV !== "test") {
   console.warn("[gsheet] GSHEET_API_URL tidak di-set. Data tidak akan persist.");
 }
-
