@@ -17,10 +17,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-interface Schedule {
-  date: string;
-  slots: string[];
-}
 
 const monthNames = [
   "Januari","Februari","Maret","April","Mei","Juni",
