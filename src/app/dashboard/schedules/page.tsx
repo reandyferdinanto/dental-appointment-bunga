@@ -131,50 +131,59 @@ export default function SchedulesPage() {
   weekEnd.setDate(weekEnd.getDate() + 6);
 
   return (
-    <div>
+    <div className="pb-4">
       <div className="mb-6">
-        <h1 className="text-2xl font-extrabold text-[#3a3f52] flex items-center gap-2">
-          <CalendarClock className="w-7 h-7" style={{ color: "#F7A5A5" }} />
+        <h1 className="text-xl sm:text-2xl font-extrabold text-[#3a3f52] flex items-center gap-2">
+          <CalendarClock className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: "#F7A5A5" }} />
           Kelola Jadwal Praktik
         </h1>
-        <p className="text-sm text-[#5D688A]/65 mt-1">Atur slot waktu yang tersedia untuk pasien</p>
+        <p className="text-xs sm:text-sm text-[#5D688A]/65 mt-1">Atur slot waktu yang tersedia untuk pasien</p>
       </div>
 
       {/* Week Navigation */}
-      <div className="glass flex items-center justify-between mb-6 rounded-2xl p-4"
+      <div className="glass flex items-center justify-between mb-6 rounded-2xl p-3 sm:p-4"
         style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 4px 20px rgba(93,104,138,0.08)" }}>
-        <button onClick={prevWeek} className="p-2 rounded-xl hover:bg-white/60 text-[#5D688A] transition-all">
+        <button onClick={prevWeek} className="p-2.5 rounded-xl hover:bg-white/60 text-[#5D688A] transition-all tap-feedback">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h2 className="font-bold text-[#3a3f52] text-sm sm:text-base">
+        <h2 className="font-bold text-[#3a3f52] text-xs sm:text-base text-center leading-snug">
           {weekStart.getDate()} {monthNames[weekStart.getMonth()]} — {weekEnd.getDate()} {monthNames[weekEnd.getMonth()]} {weekEnd.getFullYear()}
         </h2>
-        <button onClick={nextWeek} className="p-2 rounded-xl hover:bg-white/60 text-[#5D688A] transition-all">
+        <button onClick={nextWeek} className="p-2.5 rounded-xl hover:bg-white/60 text-[#5D688A] transition-all tap-feedback">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Slot Editor Modal */}
+      {/* Slot Editor Modal — bottom sheet on mobile */}
       {selectedDate && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ background: "rgba(58,63,82,0.45)", backdropFilter: "blur(8px)" }}
           onClick={() => setSelectedDate(null)}>
-          <div className="modal-sheet glass sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 max-h-[88vh] overflow-y-auto"
-            style={{ border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 20px 60px rgba(93,104,138,0.2)" }}
+          <div
+            className="modal-sheet glass sm:rounded-3xl max-w-lg w-full overflow-y-auto animate-slide-up"
+            style={{
+              border: "1px solid rgba(255,255,255,0.8)",
+              boxShadow: "0 20px 60px rgba(93,104,138,0.2)",
+              padding: "20px 20px 0 20px",
+            }}
             onClick={(e) => e.stopPropagation()}>
+
             {/* Drag handle */}
-            <div className="sm:hidden flex justify-center mb-4">
+            <div className="sm:hidden flex justify-center mb-3">
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(93,104,138,0.25)" }} />
             </div>
+
             <h3 className="font-bold text-lg text-[#3a3f52] mb-1">Edit Jadwal</h3>
             <p className="text-sm text-[#5D688A]/65 mb-4">
               {(() => {
-                const d = new Date(selectedDate);
+                const [y, mo, day] = selectedDate.split("-").map(Number);
+                const d = new Date(y, mo - 1, day);
                 return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
               })()}
             </p>
+
             <p className="text-xs font-semibold text-[#5D688A]/60 mb-3">Pilih slot waktu yang tersedia:</p>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-6">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-5">
               {timeSlots.map((slot) => (
                 <button key={slot} onClick={() => toggleSlot(slot)}
                   className="py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.04] active:scale-95 tap-feedback"
@@ -191,10 +200,18 @@ export default function SchedulesPage() {
                 </button>
               ))}
             </div>
-            <div className="flex gap-3">
+
+            {/* Sticky action buttons — stick to bottom of sheet, above mobile nav */}
+            <div
+              className="sticky bottom-0 flex gap-3 py-4 bg-transparent"
+              style={{
+                // Extra bottom padding = safe-area-inset-bottom so buttons sit above iOS home bar
+                paddingBottom: "max(env(safe-area-inset-bottom, 8px), 8px)",
+                background: "linear-gradient(to bottom, rgba(255,242,239,0) 0%, rgba(255,242,239,0.97) 30%)",
+              }}>
               <button onClick={() => setSelectedDate(null)}
                 className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-[#5D688A] transition-all active:scale-95 tap-feedback"
-                style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,104,138,0.15)" }}>
+                style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(93,104,138,0.15)" }}>
                 Batal
               </button>
               <button onClick={saveSchedule} disabled={!!saving}

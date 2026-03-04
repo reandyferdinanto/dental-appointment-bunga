@@ -142,7 +142,8 @@ body {
 .mobile-bottom-nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  z-index: 60;
+  /* z-40 so modal overlays (z-50) always appear above the bottom nav */
+  z-index: 40;
   background: rgba(255,242,239,0.94);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -159,7 +160,13 @@ body {
     bottom: 0 !important;
     top: auto !important;
     border-radius: 1.5rem 1.5rem 0 0 !important;
-    max-height: 90vh !important;
+    /*
+     * Bottom nav is ~72px + safe-area. The overlay (z-50) is above the nav (z-40),
+     * so the sheet renders on top. Add bottom padding so the sheet's own content
+     * clears the nav visually when scrolled to the bottom.
+     */
+    max-height: calc(100dvh - 60px) !important;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
     animation: slide-up 0.3s ease both;
   }
 }
