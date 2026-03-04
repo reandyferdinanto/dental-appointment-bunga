@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
     const week = searchParams.get("week");
 
     if (week) {
-      const startDate = new Date(week);
+      // Parse YYYY-MM-DD as LOCAL midnight to avoid UTC timezone shift
+      const [wy, wm, wd] = week.split("-").map(Number);
+      const startDate = new Date(wy, wm - 1, wd, 0, 0, 0, 0);
       const schedules = await getWeekSchedules(startDate);
       return NextResponse.json(schedules);
     }
@@ -20,11 +22,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(schedule);
     }
 
-    // Default: get current week
+    // Default: get current week starting from Monday (local time)
     const today = new Date();
     const day = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    const monday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - (day === 0 ? 6 : day - 1),
+      0, 0, 0, 0
+    );
     const schedules = await getWeekSchedules(monday);
     return NextResponse.json(schedules);
   } catch (error) {
@@ -58,4 +64,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Gagal menyimpan jadwal" }, { status: 500 });
   }
 }
-

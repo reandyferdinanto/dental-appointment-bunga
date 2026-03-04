@@ -4,22 +4,37 @@ import { db } from "@/lib/redis";
 import { keys } from "@/lib/db/keys";
 import { generateId } from "@/lib/utils";
 
+/** Format a Date as YYYY-MM-DD using LOCAL timezone (not UTC) */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Add/subtract days and return a NEW date at local midnight */
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + days, 0, 0, 0, 0);
+  return d;
+}
+
 // Seed demo data - only for development
 export async function POST() {
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "Not allowed in production" }, { status: 403 });
   }
 
+  // Use local midnight as base to avoid UTC shift
   const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+
   const slots = ["09:00", "09:30", "10:00", "10:30", "11:00", "13:00", "13:30", "14:00", "14:30", "15:00"];
 
   // Seed schedules for the next 14 days (except Sundays)
   for (let i = 0; i < 14; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
+    const d = addDays(todayMidnight, i);
     if (d.getDay() !== 0) {
-      const dateStr = d.toISOString().split("T")[0];
-      await setSchedule(dateStr, slots);
+      await setSchedule(localDateStr(d), slots);
     }
   }
 
@@ -30,7 +45,7 @@ export async function POST() {
       patientName: "Budi Santoso",
       patientPhone: "081234567890",
       koasId: "bunga",
-      date: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      date: localDateStr(addDays(todayMidnight, 1)),
       time: "09:00",
       complaint: "Gigi geraham kiri bawah berlubang dan sakit saat makan",
       status: "confirmed",
@@ -41,7 +56,7 @@ export async function POST() {
       patientName: "Siti Rahayu",
       patientPhone: "082345678901",
       koasId: "bunga",
-      date: today.toISOString().split("T")[0],
+      date: localDateStr(todayMidnight),
       time: "10:00",
       complaint: "Ingin pembersihan karang gigi rutin",
       status: "pending",
@@ -52,11 +67,11 @@ export async function POST() {
       patientName: "Ahmad Fauzi",
       patientPhone: "083456789012",
       koasId: "bunga",
-      date: new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      date: localDateStr(addDays(todayMidnight, -2)),
       time: "13:00",
       complaint: "Gigi depan atas patah akibat kecelakaan",
       status: "completed",
-      createdAt: new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: addDays(todayMidnight, -3).toISOString(),
     },
   ];
 
@@ -73,7 +88,7 @@ export async function POST() {
     {
       id: generateId(),
       koasId: "bunga",
-      date: new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      date: localDateStr(addDays(todayMidnight, -2)),
       patientInitials: "Tn. AF",
       procedureType: "Penambalan Komposit",
       toothNumber: "11",
@@ -82,12 +97,12 @@ export async function POST() {
       supervisorName: "drg. Hendra Wijaya, Sp.KG",
       competencyLevel: "performed",
       notes: "Pasien kooperatif, hasil baik",
-      createdAt: new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: addDays(todayMidnight, -2).toISOString(),
     },
     {
       id: generateId(),
       koasId: "bunga",
-      date: new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+      date: localDateStr(addDays(todayMidnight, -5)),
       patientInitials: "Ny. DR",
       procedureType: "Scaling / Pembersihan Karang Gigi",
       toothNumber: "",
@@ -96,7 +111,7 @@ export async function POST() {
       supervisorName: "drg. Anita Kusuma, Sp.Perio",
       competencyLevel: "assisted",
       notes: "Perdarahan minimal, OH pasien perlu ditingkatkan",
-      createdAt: new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: addDays(todayMidnight, -5).toISOString(),
     },
   ];
 
@@ -116,4 +131,3 @@ export async function POST() {
     }
   });
 }
-

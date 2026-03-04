@@ -67,8 +67,13 @@ export default function LogbookPage() {
   const [viewEntry, setViewEntry] = useState<LogbookEntry | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  function todayLocal() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
   const [form, setForm] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: todayLocal(),
     patientInitials: "",
     procedureType: "",
     toothNumber: "",
@@ -132,7 +137,7 @@ export default function LogbookPage() {
 
   function resetForm() {
     setForm({
-      date: new Date().toISOString().split("T")[0],
+      date: todayLocal(),
       patientInitials: "",
       procedureType: "",
       toothNumber: "",
@@ -164,14 +169,14 @@ export default function LogbookPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#3a3f52] flex items-center gap-2">
-            <BookOpen className="w-7 h-7" style={{ color: "#FFDBB6" }} />
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#3a3f52] flex items-center gap-2">
+            <BookOpen className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: "#FFDBB6" }} />
             E-Logbook
           </h1>
-          <p className="text-sm text-[#5D688A]/65 mt-1">Catatan tindakan medis dan requirement kelulusan stase</p>
+          <p className="text-xs sm:text-sm text-[#5D688A]/65 mt-1">Catatan tindakan medis dan requirement kelulusan stase</p>
         </div>
         <button onClick={() => setShowForm(true)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm text-white hover:scale-[1.02] transition-all"
+          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-white hover:scale-[1.02] active:scale-95 transition-all tap-feedback"
           style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.35)" }}>
           <Plus className="w-4 h-4" /> Tambah Catatan
         </button>
@@ -185,10 +190,10 @@ export default function LogbookPage() {
           { label: "Asistensi",      value: totalAssisted,     color: "#5D688A",  bg: "rgba(93,104,138,0.1)" },
           { label: "Observasi",      value: totalObserved,     color: "#b87333",  bg: "rgba(255,219,182,0.35)" },
         ].map(s => (
-          <div key={s.label} className="glass rounded-2xl p-4 text-center"
+          <div key={s.label} className="glass rounded-2xl p-3.5 sm:p-4 text-center"
             style={{ border: "1px solid rgba(255,255,255,0.75)" }}>
-            <p className="text-2xl font-extrabold" style={{ color: s.color }}>{s.value}</p>
-            <p className="text-xs text-[#5D688A]/60 mt-0.5">{s.label}</p>
+            <p className="text-xl sm:text-2xl font-extrabold" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-[10px] sm:text-xs text-[#5D688A]/60 mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
@@ -328,15 +333,19 @@ export default function LogbookPage() {
 
       {/* View Entry Modal */}
       {viewEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(58,63,82,0.4)", backdropFilter: "blur(8px)" }}
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: "rgba(58,63,82,0.45)", backdropFilter: "blur(8px)" }}
           onClick={() => setViewEntry(null)}>
-          <div className="glass rounded-3xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto"
+          <div className="modal-sheet glass sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 max-h-[90vh] overflow-y-auto"
             style={{ border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 20px 60px rgba(93,104,138,0.2)" }}
             onClick={(e) => e.stopPropagation()}>
+            {/* Drag handle (mobile) */}
+            <div className="sm:hidden flex justify-center mb-3">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(93,104,138,0.25)" }} />
+            </div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-lg text-[#3a3f52]">Detail Catatan</h3>
-              <button onClick={() => setViewEntry(null)} className="p-2 rounded-xl hover:bg-white/60 text-[#5D688A]">
+              <button onClick={() => setViewEntry(null)} className="p-2 rounded-xl hover:bg-white/60 text-[#5D688A] tap-feedback">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -398,20 +407,20 @@ export default function LogbookPage() {
             const comp = competencyLabels[entry.competencyLevel];
             return (
               <div key={entry.id}
-                className="glass rounded-2xl p-5 hover:scale-[1.005] transition-all duration-200"
+                className="glass rounded-2xl p-4 sm:p-5 transition-all duration-200 tap-feedback"
                 style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 2px 12px rgba(93,104,138,0.06)" }}>
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="flex items-start gap-3">
                   {/* Date */}
-                  <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
+                  <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
                     style={{ background: "linear-gradient(135deg, rgba(255,219,182,0.3), rgba(247,165,165,0.2))", border: "1px solid rgba(255,219,182,0.4)" }}>
-                    <span className="text-[9px] font-bold" style={{ color: "#F7A5A5" }}>{monthNames[d.getMonth()]}</span>
-                    <span className="text-lg font-extrabold text-[#3a3f52] -mt-0.5">{d.getDate()}</span>
+                    <span className="text-[8px] sm:text-[9px] font-bold" style={{ color: "#F7A5A5" }}>{monthNames[d.getMonth()]}</span>
+                    <span className="text-base sm:text-lg font-extrabold text-[#3a3f52] -mt-0.5">{d.getDate()}</span>
                   </div>
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-bold text-[#3a3f52] text-sm">{entry.procedureType}</h3>
-                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold shrink-0 ${comp.color}`}>
+                      <h3 className="font-bold text-[#3a3f52] text-sm break-word">{entry.procedureType}</h3>
+                      <span className={`text-[9px] sm:text-[10px] px-2 py-1 rounded-full font-semibold shrink-0 ${comp.color}`}>
                         {comp.label}
                       </span>
                     </div>
@@ -419,18 +428,18 @@ export default function LogbookPage() {
                       Pasien: <strong>{entry.patientInitials}</strong>
                       {entry.toothNumber && <> · Gigi: <strong>{entry.toothNumber}</strong></>}
                     </p>
-                    <p className="text-xs text-[#5D688A]/55">
-                      Dx: {entry.diagnosis} · Supervisor: {entry.supervisorName}
+                    <p className="text-xs text-[#5D688A]/55 leading-relaxed">
+                      Dx: {entry.diagnosis} · {entry.supervisorName}
                     </p>
                     {/* Actions */}
                     <div className="flex items-center gap-2 mt-3">
                       <button onClick={() => setViewEntry(entry)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03]"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] active:scale-95 tap-feedback"
                         style={{ background: "rgba(93,104,138,0.1)", color: "#5D688A" }}>
                         <Eye className="w-3 h-3" /> Detail
                       </button>
                       <button onClick={() => handleDelete(entry.id)} disabled={deleting === entry.id}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] disabled:opacity-50"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] active:scale-95 disabled:opacity-50 tap-feedback"
                         style={{ background: "rgba(247,165,165,0.2)", color: "#c0504f" }}>
                         {deleting === entry.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                         Hapus

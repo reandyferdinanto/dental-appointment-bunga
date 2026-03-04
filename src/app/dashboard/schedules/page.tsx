@@ -39,7 +39,10 @@ function getMonday(d: Date) {
 }
 
 function formatDateStr(d: Date) {
-  return d.toISOString().split("T")[0];
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export default function SchedulesPage() {
@@ -153,12 +156,16 @@ export default function SchedulesPage() {
 
       {/* Slot Editor Modal */}
       {selectedDate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(58,63,82,0.4)", backdropFilter: "blur(8px)" }}
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: "rgba(58,63,82,0.45)", backdropFilter: "blur(8px)" }}
           onClick={() => setSelectedDate(null)}>
-          <div className="glass rounded-3xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto"
+          <div className="modal-sheet glass sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 max-h-[88vh] overflow-y-auto"
             style={{ border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 20px 60px rgba(93,104,138,0.2)" }}
             onClick={(e) => e.stopPropagation()}>
+            {/* Drag handle */}
+            <div className="sm:hidden flex justify-center mb-4">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(93,104,138,0.25)" }} />
+            </div>
             <h3 className="font-bold text-lg text-[#3a3f52] mb-1">Edit Jadwal</h3>
             <p className="text-sm text-[#5D688A]/65 mb-4">
               {(() => {
@@ -170,13 +177,13 @@ export default function SchedulesPage() {
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-6">
               {timeSlots.map((slot) => (
                 <button key={slot} onClick={() => toggleSlot(slot)}
-                  className="py-2.5 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.04]"
+                  className="py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.04] active:scale-95 tap-feedback"
                   style={editingSlots.includes(slot) ? {
                     background: "linear-gradient(135deg, #F7A5A5, #5D688A)",
                     color: "white",
                     boxShadow: "0 4px 12px rgba(247,165,165,0.4)"
                   } : {
-                    background: "rgba(255,255,255,0.65)",
+                    background: "rgba(255,255,255,0.7)",
                     border: "1px solid rgba(93,104,138,0.15)",
                     color: "#5D688A"
                   }}>
@@ -186,12 +193,12 @@ export default function SchedulesPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setSelectedDate(null)}
-                className="flex-1 py-3 rounded-2xl font-bold text-sm text-[#5D688A] transition-all hover:bg-white/60"
-                style={{ background: "rgba(255,255,255,0.5)", border: "1px solid rgba(93,104,138,0.15)" }}>
+                className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-[#5D688A] transition-all active:scale-95 tap-feedback"
+                style={{ background: "rgba(255,255,255,0.55)", border: "1px solid rgba(93,104,138,0.15)" }}>
                 Batal
               </button>
               <button onClick={saveSchedule} disabled={!!saving}
-                className="flex-1 py-3 rounded-2xl font-bold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+                className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-95 tap-feedback"
                 style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.3)" }}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Simpan ({editingSlots.length} slot)

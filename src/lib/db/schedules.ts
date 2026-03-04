@@ -47,9 +47,12 @@ export async function getWeekSchedules(
 ): Promise<Schedule[]> {
   const schedules: Schedule[] = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
-    const dateStr = d.toISOString().split("T")[0];
+    // Use local date arithmetic — new Date(y, m, d+i) stays in local timezone
+    const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i, 0, 0, 0, 0);
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const dateStr = `${y}-${mo}-${day}`;
     const schedule = await getSchedule(dateStr, koasId);
     schedules.push(schedule);
   }

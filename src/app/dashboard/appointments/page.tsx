@@ -109,22 +109,22 @@ export default function AppointmentsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3 mb-6">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5D688A]/40" />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nama pasien..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-sm outline-none transition-all"
-            style={{ background: "rgba(255,255,255,0.65)", border: "1.5px solid rgba(93,104,138,0.15)", color: "#3a3f52" }}
+            className="w-full pl-10 pr-4 py-3 rounded-2xl text-sm outline-none transition-all"
+            style={{ background: "rgba(255,255,255,0.7)", border: "1.5px solid rgba(93,104,138,0.15)", color: "#3a3f52" }}
             onFocus={e => e.currentTarget.style.borderColor = "#F7A5A5"}
             onBlur={e => e.currentTarget.style.borderColor = "rgba(93,104,138,0.15)"}
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="w-4 h-4 text-[#5D688A]/50" />
+          <Filter className="w-3.5 h-3.5 text-[#5D688A]/50 shrink-0" />
           {["all", "pending", "confirmed", "completed", "cancelled"].map((s) => (
             <button key={s} onClick={() => setFilter(s)}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02]"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95 tap-feedback"
               style={filter === s ? {
                 background: "linear-gradient(135deg, #5D688A, #7a88b0)",
                 color: "white",
@@ -169,78 +169,74 @@ export default function AppointmentsPage() {
             const d = new Date(apt.date);
             return (
               <div key={apt.id}
-                className="glass rounded-2xl p-5 hover:scale-[1.005] transition-all duration-200"
+                className="glass rounded-2xl p-4 sm:p-5 transition-all duration-200 tap-feedback"
                 style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 2px 12px rgba(93,104,138,0.06)" }}>
-                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                {/* Top row: date + name + status */}
+                <div className="flex items-start gap-3 mb-3">
                   {/* Date badge */}
-                  <div className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
                     style={{ background: "linear-gradient(135deg, rgba(247,165,165,0.2), rgba(255,219,182,0.3))", border: "1px solid rgba(247,165,165,0.3)" }}>
-                    <span className="text-[9px] font-bold" style={{ color: "#F7A5A5" }}>{monthNames[d.getMonth()]}</span>
-                    <span className="text-lg font-extrabold text-[#3a3f52] -mt-0.5">{d.getDate()}</span>
+                    <span className="text-[8px] sm:text-[9px] font-bold" style={{ color: "#F7A5A5" }}>{monthNames[d.getMonth()]}</span>
+                    <span className="text-base sm:text-lg font-extrabold text-[#3a3f52] -mt-0.5">{d.getDate()}</span>
                   </div>
-
-                  {/* Info */}
+                  {/* Name & meta */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h3 className="font-bold text-[#3a3f52]">{apt.patientName}</h3>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-[#5D688A]/60">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-[#F7A5A5]" /> {apt.time}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-[#FFDBB6]" /> {apt.patientPhone}
-                          </span>
-                        </div>
-                      </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-[#3a3f52] text-sm sm:text-base truncate">{apt.patientName}</h3>
                       <span
-                        className={`text-[10px] px-2.5 py-1 rounded-full font-semibold border ${statusColors[apt.status]}`}
+                        className={`text-[9px] sm:text-[10px] px-2 py-1 rounded-full font-semibold border shrink-0 ${statusColors[apt.status]}`}
                         style={{ background: statusBg[apt.status] }}>
                         {statusLabels[apt.status]}
                       </span>
                     </div>
-
-                    <div className="flex items-start gap-1.5 mt-2">
-                      <FileText className="w-3.5 h-3.5 text-[#5D688A]/40 mt-0.5 shrink-0" />
-                      <p className="text-xs text-[#5D688A]/60 leading-relaxed">{apt.complaint}</p>
+                    <div className="flex items-center gap-2 sm:gap-3 mt-1 flex-wrap">
+                      <span className="flex items-center gap-1 text-xs text-[#5D688A]/60">
+                        <Clock className="w-3 h-3 text-[#F7A5A5]" /> {apt.time}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-[#5D688A]/60">
+                        <Phone className="w-3 h-3 text-[#FFDBB6]" />
+                        <a href={`tel:${apt.patientPhone}`} className="hover:underline">{apt.patientPhone}</a>
+                      </span>
                     </div>
-
-                    {/* Actions */}
-                    {apt.status !== "cancelled" && apt.status !== "completed" && (
-                      <div className="flex items-center gap-2 mt-3">
-                        {apt.status === "pending" && (
-                          <button onClick={() => updateStatus(apt.id, "confirmed")}
-                            disabled={updating === apt.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] disabled:opacity-50"
-                            style={{ background: "rgba(93,104,138,0.12)", color: "#5D688A" }}>
-                            {updating === apt.id
-                              ? <Loader2 className="w-3 h-3 animate-spin" />
-                              : <CheckCircle2 className="w-3 h-3" />}
-                            Konfirmasi
-                          </button>
-                        )}
-                        {(apt.status === "pending" || apt.status === "confirmed") && (
-                          <>
-                            <button onClick={() => updateStatus(apt.id, "completed")}
-                              disabled={updating === apt.id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] disabled:opacity-50"
-                              style={{ background: "rgba(110,198,160,0.18)", color: "#3aaa7c" }}>
-                              <CheckCircle2 className="w-3 h-3" />
-                              Selesai
-                            </button>
-                            <button onClick={() => updateStatus(apt.id, "cancelled")}
-                              disabled={updating === apt.id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.03] disabled:opacity-50"
-                              style={{ background: "rgba(247,165,165,0.2)", color: "#c0504f" }}>
-                              <XCircle className="w-3 h-3" />
-                              Batalkan
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </div>
+
+                {/* Complaint */}
+                <div className="flex items-start gap-1.5 mb-3 px-1">
+                  <FileText className="w-3.5 h-3.5 text-[#5D688A]/40 mt-0.5 shrink-0" />
+                  <p className="text-xs text-[#5D688A]/65 leading-relaxed break-word">{apt.complaint}</p>
+                </div>
+
+                {/* Actions — full width on mobile */}
+                {apt.status !== "cancelled" && apt.status !== "completed" && (
+                  <div className="flex gap-2 flex-wrap">
+                    {apt.status === "pending" && (
+                      <button onClick={() => updateStatus(apt.id, "confirmed")}
+                        disabled={updating === apt.id}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 tap-feedback"
+                        style={{ background: "rgba(93,104,138,0.12)", color: "#5D688A" }}>
+                        {updating === apt.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                        Konfirmasi
+                      </button>
+                    )}
+                    {(apt.status === "pending" || apt.status === "confirmed") && (
+                      <>
+                        <button onClick={() => updateStatus(apt.id, "completed")}
+                          disabled={updating === apt.id}
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 tap-feedback"
+                          style={{ background: "rgba(110,198,160,0.18)", color: "#3aaa7c" }}>
+                          <CheckCircle2 className="w-3 h-3" /> Selesai
+                        </button>
+                        <button onClick={() => updateStatus(apt.id, "cancelled")}
+                          disabled={updating === apt.id}
+                          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 tap-feedback"
+                          style={{ background: "rgba(247,165,165,0.2)", color: "#c0504f" }}>
+                          <XCircle className="w-3 h-3" /> Batalkan
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
