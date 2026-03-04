@@ -46,7 +46,7 @@ export default function JadwalPage() {
         const res = await fetch(`/api/schedules?week=${formatDateStr(weekStart)}`);
         if (res.ok) {
           const data = await res.json();
-          setSchedules(data);
+          setSchedules(Array.isArray(data) ? data : []);
         }
       } catch (err) { console.error(err); }
       setLoading(false);

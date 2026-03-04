@@ -82,8 +82,9 @@ export default function BookingPage() {
     try {
       const res = await fetch(`/api/schedules?date=${date}`);
       if (res.ok) {
-        const data: Schedule = await res.json();
-        setAvailableSlots(data.slots.sort());
+        const data = await res.json();
+        const slots = Array.isArray(data?.slots) ? data.slots.sort() : [];
+        setAvailableSlots(slots);
       }
     } catch (err) { console.error(err); }
     setLoadingSlots(false);

@@ -11,12 +11,13 @@ export async function GET(req: NextRequest) {
 
     if (week) {
       const data = await gsheet.call("sch_get_week", { koasId: "bunga", weekStart: week });
-      return NextResponse.json(data ?? []);
+      return NextResponse.json(Array.isArray(data) ? data : []);
     }
 
     if (date) {
       const data = await gsheet.call("sch_get", { koasId: "bunga", date });
-      return NextResponse.json(data ?? { date, slots: [] });
+      const schedule = (data && typeof data === "object" && !Array.isArray(data)) ? data : { date, slots: [] };
+      return NextResponse.json(schedule);
     }
 
     // Default: current week starting Monday
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     const m = String(mon.getMonth() + 1).padStart(2, "0");
     const d = String(mon.getDate()).padStart(2, "0");
     const data = await gsheet.call("sch_get_week", { koasId: "bunga", weekStart: `${y}-${m}-${d}` });
-    return NextResponse.json(data ?? []);
+    return NextResponse.json(Array.isArray(data) ? data : []);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal memuat jadwal" }, { status: 500 });
