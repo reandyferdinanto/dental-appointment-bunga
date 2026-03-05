@@ -13,6 +13,10 @@ import {
   X,
   Trash2,
   Eye,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  ChevronDown,
 } from "lucide-react";
 
 interface LogbookEntry {
@@ -58,6 +62,172 @@ const monthNames = [
   "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
 ];
 
+const monthNamesFull = [
+  "Januari","Februari","Maret","April","Mei","Juni",
+  "Juli","Agustus","September","Oktober","November","Desember",
+];
+
+function fmtDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return `${d.getDate()} ${monthNamesFull[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+const competencyMap: Record<string, string> = {
+  observed: "Observasi",
+  assisted: "Asistensi",
+  performed: "Mandiri",
+};
+
+async function exportExcel(entries: LogbookEntry[]) {
+  const XLSX = await import("xlsx");
+  const rows = entries.map((e, i) => ({
+    "No":                i + 1,
+    "Tanggal":           fmtDate(e.date),
+    "Inisial Pasien":    e.patientInitials,
+    "Jenis Tindakan":    e.procedureType,
+    "No. Gigi":          e.toothNumber || "-",
+    "Diagnosis":         e.diagnosis,
+    "Treatment":         e.treatment,
+    "Pembimbing":        e.supervisorName,
+    "Tingkat Kompetensi": competencyMap[e.competencyLevel] || e.competencyLevel,
+    "Catatan":           e.notes || "-",
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Column widths
+  ws["!cols"] = [
+    { wch: 4 }, { wch: 20 }, { wch: 18 }, { wch: 28 },
+    { wch: 9 }, { wch: 30 }, { wch: 35 }, { wch: 28 },
+    { wch: 20 }, { wch: 30 },
+  ];
+
+  // Style header row (bold + background)
+  const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+    if (!cell) continue;
+    cell.s = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "5D688A" } },
+      alignment: { horizontal: "center", wrapText: true },
+    };
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "E-Logbook");
+
+  // Add summary sheet
+  const summary = [
+    ["Laporan E-Logbook"],
+    ["drg. Natasya Bunga Maureen"],
+    [""],
+    ["Total Catatan",  entries.length],
+    ["Mandiri",        entries.filter(e => e.competencyLevel === "performed").length],
+    ["Asistensi",      entries.filter(e => e.competencyLevel === "assisted").length],
+    ["Observasi",      entries.filter(e => e.competencyLevel === "observed").length],
+    [""],
+    ["Dicetak pada", new Date().toLocaleDateString("id-ID", { day:"numeric", month:"long", year:"numeric" })],
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(summary);
+  wsSummary["!cols"] = [{ wch: 22 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan");
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}`;
+  XLSX.writeFile(wb, `ELogbook_BungaMaureen_${stamp}.xlsx`);
+}
+
+function exportPDF(entries: LogbookEntry[]) {
+  const now = new Date();
+  const printDate = now.toLocaleDateString("id-ID", { day:"numeric", month:"long", year:"numeric" });
+  const totalPerformed = entries.filter(e => e.competencyLevel === "performed").length;
+  const totalAssisted  = entries.filter(e => e.competencyLevel === "assisted").length;
+  const totalObserved  = entries.filter(e => e.competencyLevel === "observed").length;
+
+  const rows = entries.map((e, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${fmtDate(e.date)}</td>
+      <td>${e.patientInitials}</td>
+      <td>${e.procedureType}</td>
+      <td>${e.toothNumber || "-"}</td>
+      <td>${e.diagnosis}</td>
+      <td>${e.treatment}</td>
+      <td>${e.supervisorName}</td>
+      <td><span class="badge badge-${e.competencyLevel}">${competencyMap[e.competencyLevel]}</span></td>
+      <td>${e.notes || "-"}</td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>E-Logbook — drg. Natasya Bunga Maureen</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #2d3748; background: white; padding: 20px; }
+  .header { text-align: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 2.5px solid #5D688A; }
+  .header h1 { font-size: 18px; font-weight: 800; color: #5D688A; letter-spacing: 0.3px; }
+  .header h2 { font-size: 13px; font-weight: 600; color: #F7A5A5; margin-top: 3px; }
+  .header p  { font-size: 10px; color: #718096; margin-top: 4px; }
+  .stats { display: flex; gap: 12px; margin-bottom: 16px; }
+  .stat { flex: 1; text-align: center; padding: 10px 8px; border-radius: 10px; background: #f7fafc; border: 1px solid #e2e8f0; }
+  .stat .val { font-size: 20px; font-weight: 800; color: #5D688A; }
+  .stat .lbl { font-size: 9px; color: #718096; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+  thead tr { background: #5D688A; color: white; }
+  thead th { padding: 7px 6px; text-align: left; font-weight: 700; letter-spacing: 0.2px; white-space: nowrap; }
+  tbody tr:nth-child(even) { background: #f8f9fc; }
+  tbody tr:hover { background: #fff5f5; }
+  tbody td { padding: 6px 6px; vertical-align: top; border-bottom: 1px solid #e2e8f0; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 8.5px; font-weight: 700; white-space: nowrap; }
+  .badge-performed { background: #c6f6d5; color: #276749; }
+  .badge-assisted  { background: #e2e8f0; color: #4a5568; }
+  .badge-observed  { background: #feebc8; color: #9c4221; }
+  .footer { margin-top: 16px; font-size: 9px; color: #a0aec0; text-align: right; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+  @media print {
+    body { padding: 10px; font-size: 10px; }
+    .no-print { display: none; }
+    table { font-size: 8.5px; }
+    @page { margin: 12mm; size: A4 landscape; }
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 E-Logbook Koas Kedokteran Gigi</h1>
+    <h2>drg. Natasya Bunga Maureen</h2>
+    <p>Dicetak pada ${printDate} &nbsp;·&nbsp; Total ${entries.length} catatan</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="val">${entries.length}</div><div class="lbl">Total Catatan</div></div>
+    <div class="stat"><div class="val" style="color:#276749">${totalPerformed}</div><div class="lbl">Mandiri</div></div>
+    <div class="stat"><div class="val" style="color:#4a5568">${totalAssisted}</div><div class="lbl">Asistensi</div></div>
+    <div class="stat"><div class="val" style="color:#9c4221">${totalObserved}</div><div class="lbl">Observasi</div></div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>No</th><th>Tanggal</th><th>Pasien</th><th>Jenis Tindakan</th>
+        <th>No.Gigi</th><th>Diagnosis</th><th>Treatment</th>
+        <th>Pembimbing</th><th>Kompetensi</th><th>Catatan</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">E-Logbook · drg. Natasya Bunga Maureen · ${printDate}</div>
+  <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }</script>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const win  = window.open(url, "_blank", "width=1200,height=800");
+  if (win) win.focus();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export default function LogbookPage() {
   const [entries, setEntries] = useState<LogbookEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +236,8 @@ export default function LogbookPage() {
   const [submitting, setSubmitting] = useState(false);
   const [viewEntry, setViewEntry] = useState<LogbookEntry | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [showDownload, setShowDownload] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   function todayLocal() {
     const d = new Date();
@@ -175,11 +347,72 @@ export default function LogbookPage() {
           </h1>
           <p className="text-xs sm:text-sm text-[#5D688A]/65 mt-1">Catatan tindakan medis dan requirement kelulusan stase</p>
         </div>
-        <button onClick={() => setShowForm(true)}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-white hover:scale-[1.02] active:scale-95 transition-all tap-feedback"
-          style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.35)" }}>
-          <Plus className="w-4 h-4" /> Tambah Catatan
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Download dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowDownload(v => !v)}
+              disabled={entries.length === 0}
+              className="flex items-center gap-1.5 px-4 py-3 rounded-2xl font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40"
+              style={{ background: "rgba(255,219,182,0.25)", color: "#5D688A", border: "1.5px solid rgba(255,219,182,0.5)" }}>
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Unduh</span>
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showDownload ? "rotate-180" : ""}`} />
+            </button>
+
+            {showDownload && (
+              <>
+                {/* Backdrop */}
+                <div className="fixed inset-0 z-40" onClick={() => setShowDownload(false)} />
+                {/* Dropdown */}
+                <div className="absolute right-0 top-full mt-2 z-50 min-w-[180px] rounded-2xl overflow-hidden"
+                  style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(16px)", border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 8px 32px rgba(93,104,138,0.18)" }}>
+                  <div className="px-3 py-2 border-b"
+                    style={{ borderColor: "rgba(93,104,138,0.08)" }}>
+                    <p className="text-[10px] font-semibold text-[#5D688A]/50 uppercase tracking-wider">Unduh Laporan</p>
+                  </div>
+                  {/* Excel */}
+                  <button
+                    onClick={async () => {
+                      setShowDownload(false);
+                      setExportingExcel(true);
+                      await exportExcel(entries);
+                      setExportingExcel(false);
+                    }}
+                    disabled={exportingExcel}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all hover:bg-green-50 tap-feedback">
+                    {exportingExcel
+                      ? <Loader2 className="w-4 h-4 animate-spin text-green-600" />
+                      : <FileSpreadsheet className="w-4 h-4 text-green-600" />}
+                    <div className="text-left">
+                      <p className="text-[#3a3f52] text-sm">Excel (.xlsx)</p>
+                      <p className="text-[10px] text-[#5D688A]/50">Semua data + ringkasan</p>
+                    </div>
+                  </button>
+                  {/* PDF */}
+                  <button
+                    onClick={() => {
+                      setShowDownload(false);
+                      exportPDF(entries);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold transition-all hover:bg-red-50 tap-feedback">
+                    <FileText className="w-4 h-4 text-red-500" />
+                    <div className="text-left">
+                      <p className="text-[#3a3f52] text-sm">PDF (cetak)</p>
+                      <p className="text-[10px] text-[#5D688A]/50">A4 landscape, siap cetak</p>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <button onClick={() => setShowForm(true)}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm text-white hover:scale-[1.02] active:scale-95 transition-all tap-feedback"
+            style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.35)" }}>
+            <Plus className="w-4 h-4" /> Tambah Catatan
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
