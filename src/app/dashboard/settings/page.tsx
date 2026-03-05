@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import type { AdminUser } from "@/lib/auth";
 import {
   Settings, Phone, Mail, Clock, Stethoscope,
   Save, Plus, Trash2, Loader2, Instagram, MessageCircle,
