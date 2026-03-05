@@ -6,6 +6,8 @@
  *  • Cek jadwal praktik hari ini & minggu ini
  *  • Reservasi janji temu (form step-by-step)
  *  • Bahasa ramah & menenangkan pasien
+ *  • Semua info klinik (nama, WA, alamat, layanan) diambil langsung
+ *    dari Google Sheets — sinkron otomatis dengan website ✅
  */
 
 import { sendMessage, answerCallbackQuery } from "./api";
@@ -16,6 +18,79 @@ import {
 // ── Gsheet helper (reuse existing client) ─────────────────────────────────────
 const API_URL = process.env.GSHEET_API_URL ?? "";
 const SECRET  = process.env.GSHEET_SECRET  ?? "";
+
+// ── Clinic settings (fetched from Google Sheets, cached 5 min) ───────────────
+interface ClinicSettings {
+  clinicName:          string;
+  doctorName:          string;
+  phone:               string;
+  whatsapp:            string;
+  address:             string;
+  services:            string[];
+  instagramUrl:        string;
+  lineId:              string;
+  announcement:        string;
+  workHourStart:       string;
+  workHourEnd:         string;
+}
+
+const SETTINGS_DEFAULT: ClinicSettings = {
+  clinicName:    "Klinik Gigi drg. Natasya Bunga Maureen",
+  doctorName:    "Natasya Bunga Maureen",
+  phone:         "",
+  whatsapp:      "",
+  address:       "Klinik Gigi RSGM / Klinik Stase",
+  services:      ["Pemeriksaan Gigi","Pencabutan Gigi","Penambalan Gigi","Pembersihan Karang Gigi","Perawatan Saluran Akar"],
+  instagramUrl:  "",
+  lineId:        "",
+  announcement:  "",
+  workHourStart: "08:00",
+  workHourEnd:   "16:00",
+};
+
+let _settingsCache: ClinicSettings | null = null;
+let _settingsCachedAt = 0;
+const SETTINGS_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function getSettings(): Promise<ClinicSettings> {
+  // Return from cache if still fresh
+  if (_settingsCache && Date.now() - _settingsCachedAt < SETTINGS_TTL_MS) {
+    return _settingsCache;
+  }
+  try {
+    const raw = await gsheetCall("settings_get") as Record<string, unknown>;
+    if (!raw || raw.error) return SETTINGS_DEFAULT;
+
+    // Parse services if stored as JSON string
+    let services = SETTINGS_DEFAULT.services;
+    if (Array.isArray(raw.services)) services = raw.services as string[];
+    else if (typeof raw.services === "string") {
+      try { services = JSON.parse(raw.services); } catch { /* keep default */ }
+    }
+
+    // Strip any leading "drg." the admin may have typed
+    const doctorName = String(raw.doctorName ?? SETTINGS_DEFAULT.doctorName)
+      .replace(/^drg\.?\s*/i, "").trim() || SETTINGS_DEFAULT.doctorName;
+
+    _settingsCache = {
+      clinicName:    String(raw.clinicName    ?? SETTINGS_DEFAULT.clinicName),
+      doctorName,
+      phone:         String(raw.phone         ?? ""),
+      whatsapp:      String(raw.whatsapp      ?? ""),
+      address:       String(raw.address       ?? SETTINGS_DEFAULT.address),
+      services,
+      instagramUrl:  String(raw.instagramUrl  ?? ""),
+      lineId:        String(raw.lineId        ?? ""),
+      announcement:  String(raw.announcement  ?? ""),
+      workHourStart: String(raw.workHourStart ?? SETTINGS_DEFAULT.workHourStart),
+      workHourEnd:   String(raw.workHourEnd   ?? SETTINGS_DEFAULT.workHourEnd),
+    };
+    _settingsCachedAt = Date.now();
+    return _settingsCache;
+  } catch {
+    return _settingsCache ?? SETTINGS_DEFAULT;
+  }
+}
 
 async function gsheetCall(action: string, params: Record<string, unknown> = {}): Promise<unknown> {
   if (!API_URL) {
@@ -244,10 +319,11 @@ function formatWeekSchedule(week: ScheduleEntry[]): string {
 // ── Handle /start and /menu ───────────────────────────────────────────────────
 async function handleStart(chatId: number, firstName: string) {
   resetSession(chatId);
+  const s    = await getSettings();
   const name = firstName ? ` ${firstName}` : "";
   await sendMessage(
     chatId,
-    `Halo${name}! 😊 Selamat datang di layanan Bot Klinik Gigi drg. Natasya Bunga Maureen 🦷\n\nSaya siap membantu kamu dengan:\n• Info layanan & tindakan gigi\n• Cek jadwal praktik\n• Buat janji temu\n\nPilih menu di bawah ya!`,
+    `Halo${name}! 😊 Selamat datang di layanan Bot <b>${s.clinicName}</b> 🦷\n\nSaya siap membantu kamu dengan:\n• Info layanan & tindakan gigi\n• Cek jadwal praktik\n• Buat janji temu\n\nPilih menu di bawah ya!`,
     { reply_markup: MAIN_MENU, parse_mode: "HTML" }
   );
 }
@@ -319,38 +395,47 @@ export async function handleCallback(
 
   // ── Kontak ─────────────────────────────────────────────────────────────────
   if (data === "kontak") {
-    await sendMessage(
-      chatId,
-      `📞 <b>Kontak & Lokasi Klinik</b>
+    const s = await getSettings();
+    const waNumber = s.whatsapp.replace(/\D/g, "").replace(/^0/, "62");
+    const waUrl    = waNumber ? `https://wa.me/${waNumber}` : null;
+    const webUrl   = process.env.NEXTAUTH_URL ?? "https://drg-bunga-appointment.vercel.app";
 
-👩‍⚕️ <b>drg. Natasya Bunga Maureen</b>
-🏥 Klinik Gigi RSGM / Klinik Stase
+    const lines: string[] = [
+      `📞 <b>Kontak & Lokasi Klinik</b>\n`,
+      `👩‍⚕️ <b>drg. ${s.doctorName}</b>`,
+      `🏥 ${s.address}`,
+    ];
+    if (s.phone)    lines.push(`📱 <b>Telepon:</b> ${s.phone}`);
+    if (s.whatsapp) lines.push(`💬 <b>WhatsApp:</b> ${s.whatsapp}`);
+    if (s.workHourStart && s.workHourEnd)
+      lines.push(`🕐 <b>Jam Praktik:</b> ${s.workHourStart} – ${s.workHourEnd}`);
+    if (s.instagramUrl) lines.push(`📸 <b>Instagram:</b> ${s.instagramUrl}`);
+    if (s.lineId)       lines.push(`💚 <b>LINE:</b> ${s.lineId}`);
+    lines.push(`\n📅 Reservasi & jadwal bisa langsung melalui bot ini!`);
 
-📱 <b>WhatsApp:</b> Hubungi melalui tombol di bawah
-🌐 <b>Website:</b> Kunjungi profil & booking online kami
+    const keyboard: { text: string; url?: string; callback_data?: string }[][] = [];
+    if (waUrl) keyboard.push([{ text: "💬 Chat WhatsApp", url: waUrl }]);
+    keyboard.push([{ text: "🌐 Buka Website", url: webUrl }]);
+    keyboard.push([{ text: "⬅️ Menu Utama", callback_data: "menu" }]);
 
-📅 Jadwal & reservasi juga bisa dilakukan langsung melalui bot ini!`,
-      {
-        parse_mode: "HTML",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "💬 Chat WhatsApp", url: "https://wa.me/62" }],
-            [{ text: "🌐 Buka Website",  url: process.env.NEXTAUTH_URL ?? "https://drg-bunga-appointment.vercel.app" }],
-            [{ text: "⬅️ Menu Utama",    callback_data: "menu" }],
-          ],
-        },
-      }
-    );
+    await sendMessage(chatId, lines.join("\n"), {
+      parse_mode: "HTML",
+      reply_markup: { inline_keyboard: keyboard },
+    });
     return;
   }
 
   // ── Tentang ────────────────────────────────────────────────────────────────
   if (data === "tentang") {
+    const s = await getSettings();
     await sendMessage(
       chatId,
-      `👩‍⚕️ <b>drg. Natasya Bunga Maureen</b>
+      `👩‍⚕️ <b>drg. ${s.doctorName}</b>
 
 Koas Kedokteran Gigi yang sedang menempuh stase klinik.
+
+<b>Layanan yang tersedia:</b>
+${s.services.map(sv => `• ${sv}`).join("\n")}
 
 <b>Komitmen kami:</b>
 ✅ Pelayanan yang ramah & profesional
@@ -756,10 +841,11 @@ export async function handleMessage(chatId: number, text: string, firstName: str
     }
 
     // Generic fallback — warm welcome for potential patients
+    const s    = await getSettings();
     const name = firstName ? ` <b>${firstName}</b>` : "";
     return sendMessage(
       chatId,
-      `Halo${name}! 🌸 Selamat datang di klinik drg. <b>Natasya Bunga Maureen</b> 🦷\n\nSenang sekali kamu sudah menghubungi kami! 😊\n\nKami hadir untuk membantu menjaga kesehatan dan kecantikan senyummu dengan pelayanan yang <b>ramah, nyaman, dan profesional</b>.\n\nJangan ragu ya — tidak ada pertanyaan yang terlalu sepele soal kesehatan gigi! 💬\n\nBerikut yang bisa aku bantu untuk kamu:`,
+      `Halo${name}! 🌸 Selamat datang di klinik drg. <b>${s.doctorName}</b> 🦷\n\nSenang sekali kamu sudah menghubungi kami! 😊\n\nKami hadir untuk membantu menjaga kesehatan dan kecantikan senyummu dengan pelayanan yang <b>ramah, nyaman, dan profesional</b>.\n\nJangan ragu ya — tidak ada pertanyaan yang terlalu sepele soal kesehatan gigi! 💬\n\nBerikut yang bisa aku bantu untuk kamu:`,
       { reply_markup: MAIN_MENU, parse_mode: "HTML" }
     );
   }
