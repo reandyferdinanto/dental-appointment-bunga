@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import {
@@ -10,21 +10,21 @@ import {
   Phone,
   FileText,
   CheckCircle2,
-  ArrowLeft,
-  ArrowRight,
   Loader2,
   Mail,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-
 
 const monthNames = [
   "Januari","Februari","Maret","April","Mei","Juni",
   "Juli","Agustus","September","Oktober","November","Desember",
 ];
-const dayNames = ["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
+const dayNames    = ["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
+const dayNamesFull = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
 
-// Input field component for consistency
 function FormInput({ label, icon: Icon, required, children }: {
   label: string; icon?: React.ElementType; required?: boolean; children: React.ReactNode;
 }) {
@@ -45,28 +45,83 @@ const inputStyle = {
   color: "#3a3f52",
 };
 
+// ── CALENDAR LEGEND PILL ──────────────────────────────────────────────────────
+function LegendPill({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+      <span className="text-[10px] text-[#5D688A]/65">{label}</span>
+    </div>
+  );
+}
+
 export default function BookingPage() {
-  const [step, setStep] = useState(1);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
+  const [step, setStep]                   = useState(1);
+  const [selectedDate, setSelectedDate]   = useState("");
+  const [selectedTime, setSelectedTime]   = useState("");
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState("");
-  const [bookingResult, setBookingResult] = useState<{id: string; date: string; time: string} | null>(null);
+  const [loadingSlots, setLoadingSlots]   = useState(false);
+  const [submitting, setSubmitting]       = useState(false);
+  const [success, setSuccess]             = useState(false);
+  const [error, setError]                 = useState("");
+  const [bookingResult, setBookingResult] = useState<{id:string;date:string;time:string}|null>(null);
+
+  // Map of dateStr → slot count for the visible month
+  const [monthSlots, setMonthSlots]       = useState<Record<string, number>>({});
+  const [loadingMonth, setLoadingMonth]   = useState(false);
 
   const [form, setForm] = useState({
-    patientName: "",
-    patientPhone: "",
-    patientEmail: "",
-    complaint: "",
+    patientName: "", patientPhone: "", patientEmail: "", complaint: "",
   });
 
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+
+  const calYear  = calendarMonth.getFullYear();
+  const calMonth = calendarMonth.getMonth();
+
+  // ── fetch ALL slots for the visible month at once ──────────────────────────
+  const fetchMonthSlots = useCallback(async (year: number, month: number) => {
+    setLoadingMonth(true);
+    try {
+      // Build the first monday of the 6-week grid we need to cover entire month
+      const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+      const gridStart = new Date(year, month, 1 - firstDay); // go back to Sunday
+      // We need to cover ~6 weeks = 42 days starting from gridStart
+      // Fetch 5 consecutive weeks to cover the whole month
+      const weekStarts: string[] = [];
+      for (let w = 0; w < 6; w++) {
+        const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + w * 7);
+        const ys = d.getFullYear();
+        const ms = String(d.getMonth() + 1).padStart(2, "0");
+        const ds = String(d.getDate()).padStart(2, "0");
+        weekStarts.push(`${ys}-${ms}-${ds}`);
+      }
+
+      const results = await Promise.all(
+        weekStarts.map(ws =>
+          fetch(`/api/schedules?week=${ws}`)
+            .then(r => r.ok ? r.json() : [])
+            .then(d => Array.isArray(d) ? d : [])
+        )
+      );
+
+      const map: Record<string, number> = {};
+      results.flat().forEach((s: { date: string; slots: string[] }) => {
+        if (s?.date && Array.isArray(s.slots)) {
+          map[s.date] = s.slots.length;
+        }
+      });
+      setMonthSlots(map);
+    } catch (e) { console.error(e); }
+    setLoadingMonth(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMonthSlots(calYear, calMonth);
+  }, [calYear, calMonth, fetchMonthSlots]);
 
   useEffect(() => {
     if (selectedDate) loadSlots(selectedDate);
@@ -79,16 +134,14 @@ export default function BookingPage() {
       const res = await fetch(`/api/schedules?date=${date}`);
       if (res.ok) {
         const data = await res.json();
-        const slots = Array.isArray(data?.slots) ? data.slots.sort() : [];
-        setAvailableSlots(slots);
+        setAvailableSlots(Array.isArray(data?.slots) ? data.slots.sort() : []);
       }
     } catch (err) { console.error(err); }
     setLoadingSlots(false);
   }
 
   async function handleSubmit() {
-    setSubmitting(true);
-    setError("");
+    setSubmitting(true); setError("");
     try {
       const res = await fetch("/api/appointments", {
         method: "POST",
@@ -107,26 +160,45 @@ export default function BookingPage() {
     setSubmitting(false);
   }
 
-  function getDaysInMonth(year: number, month: number) { return new Date(year, month + 1, 0).getDate(); }
-  function getFirstDayOfMonth(year: number, month: number) { return new Date(year, month, 1).getDay(); }
+  function getDaysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate(); }
+  function getFirstDayOfMonth(y: number, m: number) { return new Date(y, m, 1).getDay(); }
 
-  const calYear = calendarMonth.getFullYear();
-  const calMonth = calendarMonth.getMonth();
   const daysInMonth = getDaysInMonth(calYear, calMonth);
-  const firstDay = getFirstDayOfMonth(calYear, calMonth);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const firstDay    = getFirstDayOfMonth(calYear, calMonth);
 
-  // Success screen
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+  const todayStr  = `${todayDate.getFullYear()}-${String(todayDate.getMonth()+1).padStart(2,"0")}-${String(todayDate.getDate()).padStart(2,"0")}`;
+
+  function toDateStr(y: number, m: number, d: number) {
+    return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  }
+
+  // ── slot count → visual tier ───────────────────────────────────────────────
+  function slotTier(count: number): "high" | "mid" | "low" | "none" {
+    if (count >= 6) return "high";
+    if (count >= 3) return "mid";
+    if (count >= 1) return "low";
+    return "none";
+  }
+
+  const tierColors = {
+    high: "#4ade80",   // green — banyak slot
+    mid:  "#fbbf24",   // yellow — beberapa slot
+    low:  "#fb923c",   // orange — sedikit slot
+    none: "transparent",
+  };
+
+  // ── Success screen ─────────────────────────────────────────────────────────
   if (success && bookingResult) {
-    const d = new Date(bookingResult.date);
+    const parts = bookingResult.date.split("-").map(Number);
+    const d = new Date(parts[0], parts[1]-1, parts[2]);
     return (
       <div className="min-h-screen flex flex-col bg-mesh">
         <Navbar />
         <main className="flex-1 flex items-center justify-center py-8 px-4">
           <div className="w-full max-w-md mx-auto text-center animate-slide-up">
             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full mx-auto mb-5 flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, rgba(110,198,160,0.2), rgba(110,198,160,0.4))", border: "2px solid rgba(110,198,160,0.5)" }}>
+              style={{ background: "linear-gradient(135deg,rgba(110,198,160,0.2),rgba(110,198,160,0.4))", border: "2px solid rgba(110,198,160,0.5)" }}>
               <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" style={{ color: "#3aaa7c" }} />
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-[#3a3f52] mb-2">Booking Berhasil! 🎉</h1>
@@ -134,30 +206,28 @@ export default function BookingPage() {
             <div className="glass rounded-2xl p-5 mb-6 text-left space-y-3"
               style={{ border: "1px solid rgba(255,255,255,0.75)" }}>
               {[
-                { label: "ID Booking", value: bookingResult.id.slice(0, 8) + "..." },
+                { label: "ID Booking", value: bookingResult.id.slice(0,8)+"..." },
                 { label: "Tanggal",    value: `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}` },
                 { label: "Waktu",      value: bookingResult.time },
                 { label: "Pasien",     value: form.patientName },
               ].map(item => (
                 <div key={item.label} className="flex justify-between items-center">
                   <span className="text-sm text-[#5D688A]/60">{item.label}</span>
-                  <span className="text-sm font-semibold text-[#3a3f52] break-word">{item.value}</span>
+                  <span className="text-sm font-semibold text-[#3a3f52]">{item.value}</span>
                 </div>
               ))}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-[#5D688A]/60">Status</span>
                 <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
-                  style={{ background: "rgba(255,219,182,0.4)", color: "#b87333" }}>
-                  Menunggu Konfirmasi
-                </span>
+                  style={{ background: "rgba(255,219,182,0.4)", color: "#b87333" }}>Menunggu Konfirmasi</span>
               </div>
             </div>
             <div className="flex flex-col gap-3">
-              <Link href="/" className="px-6 py-3.5 rounded-2xl font-bold text-sm text-white text-center transition-all hover:scale-[1.02] active:scale-95 tap-feedback"
-                style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.35)" }}>
+              <Link href="/" className="px-6 py-3.5 rounded-2xl font-bold text-sm text-white text-center transition-all hover:scale-[1.02] active:scale-95"
+                style={{ background: "linear-gradient(135deg,#5D688A,#7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.35)" }}>
                 Kembali ke Beranda
               </Link>
-              <Link href="/jadwal" className="px-6 py-3.5 rounded-2xl font-bold text-sm text-center glass transition-all hover:scale-[1.02] active:scale-95 tap-feedback"
+              <Link href="/jadwal" className="px-6 py-3.5 rounded-2xl font-bold text-sm text-center glass transition-all hover:scale-[1.02] active:scale-95"
                 style={{ border: "1px solid rgba(93,104,138,0.2)", color: "#5D688A" }}>
                 Lihat Jadwal
               </Link>
@@ -172,9 +242,9 @@ export default function BookingPage() {
   return (
     <div className="min-h-screen flex flex-col bg-mesh">
       <Navbar />
-
       <main className="flex-1 py-6 sm:py-12">
         <div className="max-w-lg mx-auto px-4">
+
           {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#3a3f52]">Buat Janji Temu 🦷</h1>
@@ -183,118 +253,184 @@ export default function BookingPage() {
 
           {/* Steps indicator */}
           <div className="flex items-center justify-center gap-0 mb-6 sm:mb-8">
-            {[
-              { n: 1, label: "Tanggal" },
-              { n: 2, label: "Waktu" },
-              { n: 3, label: "Data Diri" },
-            ].map((s, i) => (
+            {[{n:1,label:"Tanggal"},{n:2,label:"Waktu"},{n:3,label:"Data Diri"}].map((s, i) => (
               <div key={s.n} className="flex items-center">
                 <div className="flex flex-col items-center">
-                  <div
-                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all"
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all"
                     style={step >= s.n ? {
-                      background: "linear-gradient(135deg, #F7A5A5, #5D688A)",
+                      background: "linear-gradient(135deg,#F7A5A5,#5D688A)",
                       color: "white",
                       boxShadow: "0 4px 12px rgba(247,165,165,0.4)"
                     } : {
                       background: "rgba(255,255,255,0.6)",
                       color: "rgba(93,104,138,0.5)",
                       border: "1px solid rgba(93,104,138,0.15)"
-                    }}
-                  >
+                    }}>
                     {step > s.n ? "✓" : s.n}
                   </div>
-                  <span className="text-[10px] font-medium mt-1" style={{ color: step >= s.n ? "#5D688A" : "rgba(93,104,138,0.4)" }}>{s.label}</span>
+                  <span className="text-[10px] font-medium mt-1"
+                    style={{ color: step >= s.n ? "#5D688A" : "rgba(93,104,138,0.4)" }}>{s.label}</span>
                 </div>
-                {i < 2 && <div className="w-12 sm:w-16 h-0.5 mb-4 rounded" style={{ background: step > s.n ? "rgba(247,165,165,0.5)" : "rgba(93,104,138,0.12)" }} />}
+                {i < 2 && <div className="w-12 sm:w-16 h-0.5 mb-4 rounded"
+                  style={{ background: step > s.n ? "rgba(247,165,165,0.5)" : "rgba(93,104,138,0.12)" }} />}
               </div>
             ))}
           </div>
 
-          {/* Step 1: Select Date */}
+          {/* ── STEP 1: Select Date ── */}
           {step === 1 && (
             <div className="glass rounded-3xl p-4 sm:p-6 animate-slide-up"
               style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 8px 32px rgba(93,104,138,0.1)" }}>
-              <div className="flex items-center gap-2 mb-4">
-                <Calendar className="w-5 h-5" style={{ color: "#F7A5A5" }} />
-                <h2 className="font-bold text-[#3a3f52]">Pilih Tanggal</h2>
+
+              {/* Card header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" style={{ color: "#F7A5A5" }} />
+                  <h2 className="font-bold text-[#3a3f52]">Pilih Tanggal</h2>
+                </div>
+                {loadingMonth && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#F7A5A5" }} />}
               </div>
 
-              {/* Calendar Navigation */}
+              {/* Month navigation */}
               <div className="flex items-center justify-between mb-4">
-                <button onClick={() => setCalendarMonth(new Date(calYear, calMonth - 1, 1))}
+                <button onClick={() => setCalendarMonth(new Date(calYear, calMonth-1, 1))}
                   className="p-2.5 rounded-xl hover:bg-white/60 text-[#5D688A] transition-all tap-feedback">
-                  <ArrowLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4" />
                 </button>
-                <h3 className="font-semibold text-[#3a3f52] text-sm sm:text-base">
+                <h3 className="font-bold text-[#3a3f52] text-sm sm:text-base">
                   {monthNames[calMonth]} {calYear}
                 </h3>
-                <button onClick={() => setCalendarMonth(new Date(calYear, calMonth + 1, 1))}
+                <button onClick={() => setCalendarMonth(new Date(calYear, calMonth+1, 1))}
                   className="p-2.5 rounded-xl hover:bg-white/60 text-[#5D688A] transition-all tap-feedback">
-                  <ArrowRight className="w-4 h-4" />
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-5">
-                {dayNames.map((d) => (
-                  <div key={d} className="text-center text-[10px] sm:text-xs font-semibold text-[#5D688A]/50 py-2">
+              {/* Day labels */}
+              <div className="grid grid-cols-7 mb-1">
+                {dayNames.map((d, i) => (
+                  <div key={d} className="text-center text-[10px] font-bold py-1.5"
+                    style={{ color: i === 0 ? "rgba(247,165,165,0.7)" : "rgba(93,104,138,0.45)" }}>
                     {d}
                   </div>
                 ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-1 mb-4">
                 {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
+
                 {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const date = new Date(calYear, calMonth, day);
-                  const dateStr = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-                  const isPast = date < today;
-                  const isSunday = date.getDay() === 0;
+                  const day     = i + 1;
+                  const dateStr = toDateStr(calYear, calMonth, day);
+                  const cellDate = new Date(calYear, calMonth, day);
+                  const isPast   = cellDate < todayDate;
+                  const isSunday = cellDate.getDay() === 0;
+                  const isToday  = dateStr === todayStr;
                   const isSelected = selectedDate === dateStr;
                   const isDisabled = isPast || isSunday;
-                  const todayD = new Date();
-                  const isToday = dateStr === `${todayD.getFullYear()}-${String(todayD.getMonth()+1).padStart(2,"0")}-${String(todayD.getDate()).padStart(2,"0")}`;
+                  const count    = monthSlots[dateStr] ?? -1; // -1 = not loaded yet
+                  const hasSlots = !isDisabled && count > 0;
+                  const noSlots  = !isDisabled && count === 0;
+                  const tier     = hasSlots ? slotTier(count) : "none";
 
                   return (
-                    <button key={day} disabled={isDisabled} onClick={() => { setSelectedDate(dateStr); setSelectedTime(""); }}
-                      className="aspect-square flex items-center justify-center rounded-xl text-xs sm:text-sm font-medium transition-all tap-feedback"
-                      style={isSelected ? {
-                        background: "linear-gradient(135deg, #F7A5A5, #5D688A)",
-                        color: "white",
-                        boxShadow: "0 4px 12px rgba(247,165,165,0.4)"
-                      } : isToday && !isDisabled ? {
-                        border: "1.5px solid rgba(247,165,165,0.6)",
-                        color: "#F7A5A5",
-                        fontWeight: 700,
-                        background: "rgba(247,165,165,0.1)"
-                      } : isDisabled ? {
-                        color: "rgba(93,104,138,0.2)",
-                        cursor: "not-allowed"
-                      } : {
-                        color: "#3a3f52"
-                      }}
-                    >
-                      {day}
+                    <button key={day}
+                      disabled={isDisabled || noSlots}
+                      onClick={() => { setSelectedDate(dateStr); setSelectedTime(""); }}
+                      className="relative flex flex-col items-center justify-center rounded-xl transition-all tap-feedback"
+                      style={{
+                        aspectRatio: "1/1",
+                        ...(isSelected ? {
+                          background: "linear-gradient(135deg,#F7A5A5,#5D688A)",
+                          boxShadow: "0 4px 14px rgba(247,165,165,0.45)",
+                        } : isToday && !isDisabled ? {
+                          background: "rgba(247,165,165,0.15)",
+                          border: "1.5px solid rgba(247,165,165,0.55)",
+                        } : isDisabled ? {
+                          opacity: 0.25,
+                        } : noSlots ? {
+                          opacity: 0.35,
+                        } : {
+                          background: "rgba(255,255,255,0.5)",
+                          border: "1px solid rgba(93,104,138,0.08)",
+                        }),
+                        cursor: isDisabled || noSlots ? "not-allowed" : "pointer",
+                      }}>
+
+                      {/* Day number */}
+                      <span className="text-xs sm:text-sm font-semibold leading-none"
+                        style={{
+                          color: isSelected ? "white"
+                            : isToday ? "#F7A5A5"
+                            : isSunday ? "rgba(247,165,165,0.5)"
+                            : "#3a3f52",
+                        }}>
+                        {day}
+                      </span>
+
+                      {/* Slot availability dot */}
+                      {!isDisabled && count >= 0 && (
+                        <span className="mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                          style={{
+                            background: isSelected ? "rgba(255,255,255,0.8)"
+                              : count === 0 ? "rgba(93,104,138,0.2)"
+                              : tierColors[tier],
+                          }} />
+                      )}
+
+                      {/* "Hari ini" badge */}
+                      {isToday && !isSelected && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
+                          style={{ background: "#F7A5A5" }} />
+                      )}
                     </button>
                   );
                 })}
               </div>
 
-              {selectedDate && (
-                <div className="mb-4 px-3 py-2 rounded-xl text-xs font-semibold text-center"
-                  style={{ background: "rgba(247,165,165,0.15)", color: "#5D688A", border: "1px solid rgba(247,165,165,0.25)" }}>
-                  📅 {new Date(selectedDate).getDate()} {monthNames[new Date(selectedDate).getMonth()]} {new Date(selectedDate).getFullYear()} dipilih
-                </div>
-              )}
+              {/* Legend */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 mb-4">
+                <LegendPill color="#4ade80" label="Banyak slot (6+)" />
+                <LegendPill color="#fbbf24" label="Beberapa slot (3-5)" />
+                <LegendPill color="#fb923c" label="Sedikit slot (1-2)" />
+                <LegendPill color="rgba(93,104,138,0.2)" label="Penuh / tidak ada" />
+              </div>
 
-              <button disabled={!selectedDate} onClick={() => setStep(2)}
+              {/* Selected date info card */}
+              {selectedDate && (() => {
+                const parts = selectedDate.split("-").map(Number);
+                const sd = new Date(parts[0], parts[1]-1, parts[2]);
+                const count = monthSlots[selectedDate] ?? 0;
+                return (
+                  <div className="mb-4 rounded-2xl p-3 flex items-center gap-3"
+                    style={{ background: "linear-gradient(135deg,rgba(247,165,165,0.12),rgba(93,104,138,0.08))", border: "1px solid rgba(247,165,165,0.25)" }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "linear-gradient(135deg,#F7A5A5,#5D688A)" }}>
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm text-[#3a3f52]">
+                        {dayNamesFull[sd.getDay()]}, {sd.getDate()} {monthNames[sd.getMonth()]} {sd.getFullYear()}
+                      </p>
+                      <p className="text-xs text-[#5D688A]/65 mt-0.5">
+                        {count > 0 ? `✅ ${count} slot waktu tersedia` : "❌ Tidak ada slot tersedia"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <button disabled={!selectedDate || (monthSlots[selectedDate] ?? 0) === 0}
+                onClick={() => setStep(2)}
                 className="w-full py-3.5 rounded-2xl font-bold text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-95 tap-feedback"
-                style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.3)" }}>
+                style={{ background: "linear-gradient(135deg,#5D688A,#7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.3)" }}>
                 Lanjut Pilih Waktu →
               </button>
             </div>
           )}
 
-          {/* Step 2: Select Time */}
+          {/* ── STEP 2: Select Time ── */}
           {step === 2 && (
             <div className="glass rounded-3xl p-4 sm:p-6 animate-slide-up"
               style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 8px 32px rgba(93,104,138,0.1)" }}>
@@ -302,24 +438,32 @@ export default function BookingPage() {
                 <Clock className="w-5 h-5" style={{ color: "#F7A5A5" }} />
                 <h2 className="font-bold text-[#3a3f52]">Pilih Waktu</h2>
               </div>
-              <p className="text-xs text-[#5D688A]/60 mb-5">
-                📅 {new Date(selectedDate).getDate()} {monthNames[new Date(selectedDate).getMonth()]} {new Date(selectedDate).getFullYear()}
-              </p>
+              {(() => {
+                const parts = selectedDate.split("-").map(Number);
+                const sd = new Date(parts[0], parts[1]-1, parts[2]);
+                return (
+                  <p className="text-xs text-[#5D688A]/60 mb-5">
+                    📅 {dayNamesFull[sd.getDay()]}, {sd.getDate()} {monthNames[sd.getMonth()]} {sd.getFullYear()}
+                  </p>
+                );
+              })()}
 
               {loadingSlots ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-3">
                   <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#F7A5A5" }} />
-                  <p className="text-xs text-[#5D688A]/55">Memuat jadwal tersedia...</p>
+                  <p className="text-xs text-[#5D688A]/55">Memuat slot waktu...</p>
                 </div>
               ) : availableSlots.length > 0 ? (
                 <>
-                  <p className="text-xs font-semibold text-[#5D688A]/55 mb-3">{availableSlots.length} slot tersedia</p>
+                  <p className="text-xs font-semibold text-[#5D688A]/55 mb-3">
+                    {availableSlots.length} slot tersedia — pilih salah satu
+                  </p>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-6">
                     {availableSlots.map((slot) => (
                       <button key={slot} onClick={() => setSelectedTime(slot)}
-                        className="py-3 rounded-2xl text-sm font-semibold border-0 transition-all hover:scale-[1.04] active:scale-95 tap-feedback"
+                        className="py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.04] active:scale-95 tap-feedback"
                         style={selectedTime === slot ? {
-                          background: "linear-gradient(135deg, #F7A5A5, #5D688A)",
+                          background: "linear-gradient(135deg,#F7A5A5,#5D688A)",
                           color: "white",
                           boxShadow: "0 4px 15px rgba(247,165,165,0.4)"
                         } : {
@@ -336,7 +480,7 @@ export default function BookingPage() {
                 <div className="text-center py-10">
                   <Clock className="w-10 h-10 mx-auto mb-3 opacity-30" style={{ color: "#F7A5A5" }} />
                   <p className="text-sm font-semibold text-[#3a3f52]">Belum ada slot tersedia</p>
-                  <p className="text-xs text-[#5D688A]/55 mt-1">Silakan pilih tanggal lain atau hubungi kami.</p>
+                  <p className="text-xs text-[#5D688A]/55 mt-1">Silakan pilih tanggal lain.</p>
                 </div>
               )}
 
@@ -348,14 +492,14 @@ export default function BookingPage() {
                 </button>
                 <button disabled={!selectedTime} onClick={() => setStep(3)}
                   className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-white disabled:opacity-40 transition-all hover:scale-[1.01] active:scale-95 tap-feedback"
-                  style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.3)" }}>
+                  style={{ background: "linear-gradient(135deg,#5D688A,#7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.3)" }}>
                   Lanjut Isi Data →
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Patient Info */}
+          {/* ── STEP 3: Patient Info ── */}
           {step === 3 && (
             <div className="glass rounded-3xl p-4 sm:p-6 animate-slide-up"
               style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 8px 32px rgba(93,104,138,0.1)" }}>
@@ -364,12 +508,11 @@ export default function BookingPage() {
                 <h2 className="font-bold text-[#3a3f52]">Data Diri Pasien</h2>
               </div>
 
-              {/* Selected summary */}
               <div className="flex items-center gap-4 p-3 rounded-2xl mb-5"
                 style={{ background: "rgba(255,219,182,0.2)", border: "1px solid rgba(255,219,182,0.4)" }}>
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-[#5D688A]">
                   <Calendar className="w-3.5 h-3.5 text-[#F7A5A5]" />
-                  {new Date(selectedDate).getDate()} {monthNames[new Date(selectedDate).getMonth()]}
+                  {(() => { const p=selectedDate.split("-").map(Number); const d=new Date(p[0],p[1]-1,p[2]); return `${d.getDate()} ${monthNames[d.getMonth()]}`; })()}
                 </div>
                 <div className="w-px h-4 bg-[#5D688A]/20" />
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-[#5D688A]">
@@ -388,46 +531,39 @@ export default function BookingPage() {
               <div className="space-y-4">
                 <FormInput label="Nama Lengkap" icon={User} required>
                   <input type="text" value={form.patientName}
-                    onChange={(e) => setForm({ ...form, patientName: e.target.value })}
+                    onChange={e => setForm({...form, patientName: e.target.value})}
                     placeholder="Masukkan nama lengkap"
                     className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
                     style={inputStyle}
-                    onFocus={e => e.currentTarget.style.borderColor = "#F7A5A5"}
-                    onBlur={e => e.currentTarget.style.borderColor = "rgba(93,104,138,0.18)"}
-                  />
+                    onFocus={e => e.currentTarget.style.borderColor="#F7A5A5"}
+                    onBlur={e => e.currentTarget.style.borderColor="rgba(93,104,138,0.18)"} />
                 </FormInput>
-
                 <FormInput label="Nomor HP / WhatsApp" icon={Phone} required>
                   <input type="tel" value={form.patientPhone}
-                    onChange={(e) => setForm({ ...form, patientPhone: e.target.value })}
+                    onChange={e => setForm({...form, patientPhone: e.target.value})}
                     placeholder="08xxxxxxxxxx"
                     className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
                     style={inputStyle}
-                    onFocus={e => e.currentTarget.style.borderColor = "#F7A5A5"}
-                    onBlur={e => e.currentTarget.style.borderColor = "rgba(93,104,138,0.18)"}
-                  />
+                    onFocus={e => e.currentTarget.style.borderColor="#F7A5A5"}
+                    onBlur={e => e.currentTarget.style.borderColor="rgba(93,104,138,0.18)"} />
                 </FormInput>
-
                 <FormInput label="Email (opsional)" icon={Mail}>
                   <input type="email" value={form.patientEmail}
-                    onChange={(e) => setForm({ ...form, patientEmail: e.target.value })}
+                    onChange={e => setForm({...form, patientEmail: e.target.value})}
                     placeholder="email@contoh.com"
                     className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
                     style={inputStyle}
-                    onFocus={e => e.currentTarget.style.borderColor = "#F7A5A5"}
-                    onBlur={e => e.currentTarget.style.borderColor = "rgba(93,104,138,0.18)"}
-                  />
+                    onFocus={e => e.currentTarget.style.borderColor="#F7A5A5"}
+                    onBlur={e => e.currentTarget.style.borderColor="rgba(93,104,138,0.18)"} />
                 </FormInput>
-
                 <FormInput label="Keluhan" icon={FileText} required>
                   <textarea rows={3} value={form.complaint}
-                    onChange={(e) => setForm({ ...form, complaint: e.target.value })}
+                    onChange={e => setForm({...form, complaint: e.target.value})}
                     placeholder="Jelaskan keluhan gigi Anda..."
                     className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all resize-none"
                     style={inputStyle}
-                    onFocus={e => e.currentTarget.style.borderColor = "#F7A5A5"}
-                    onBlur={e => e.currentTarget.style.borderColor = "rgba(93,104,138,0.18)"}
-                  />
+                    onFocus={e => e.currentTarget.style.borderColor="#F7A5A5"}
+                    onBlur={e => e.currentTarget.style.borderColor="rgba(93,104,138,0.18)"} />
                 </FormInput>
               </div>
 
@@ -441,19 +577,17 @@ export default function BookingPage() {
                   disabled={submitting || !form.patientName || !form.patientPhone || !form.complaint}
                   onClick={handleSubmit}
                   className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-white disabled:opacity-40 transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 tap-feedback"
-                  style={{ background: "linear-gradient(135deg, #F7A5A5, #5D688A)", boxShadow: "0 6px 20px rgba(247,165,165,0.35)" }}>
-                  {submitting ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Memproses...</>
-                  ) : (
-                    <><CheckCircle2 className="w-4 h-4" /> Konfirmasi</>
-                  )}
+                  style={{ background: "linear-gradient(135deg,#F7A5A5,#5D688A)", boxShadow: "0 6px 20px rgba(247,165,165,0.35)" }}>
+                  {submitting
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Memproses...</>
+                    : <><CheckCircle2 className="w-4 h-4" /> Konfirmasi</>}
                 </button>
               </div>
             </div>
           )}
+
         </div>
       </main>
-
       <Footer />
     </div>
   );
