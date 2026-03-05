@@ -4,7 +4,9 @@ import { gsheet } from "@/lib/gsheet";
 export async function GET() {
   try {
     const data = await gsheet.call("apt_list");
-    return NextResponse.json(data ?? []);
+    return NextResponse.json(data ?? [], {
+      headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
+    });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal memuat appointments" }, { status: 500 });

@@ -60,6 +60,11 @@ function doGet(e) {
     if (action === "sch_remove_slot")   return jsonResponse(schRemoveSlot(ss, body.koasId, body.date, body.time));
     if (action === "settings_get")      return jsonResponse(settingsGet(ss));
     if (action === "settings_set")      return jsonResponse(settingsSet(ss, body));
+    if (action === "admin_list")        return jsonResponse(adminList(ss));
+    if (action === "admin_create")      return jsonResponse(adminCreate(ss, body));
+    if (action === "admin_update_password") return jsonResponse(adminUpdatePassword(ss, body.id, body.passwordHash));
+    if (action === "admin_update")      return jsonResponse(adminUpdate(ss, body));
+    if (action === "admin_delete")      return jsonResponse(adminDelete(ss, body.id));
     if (action === "seed")              return jsonResponse(seedData(ss));
 
     return jsonResponse({ error: "Unknown action: " + action });
@@ -378,6 +383,66 @@ function settingsSet(ss, body) {
       existing[key] = sheet.getLastRow();
     }
   }
+  return { success: true };
+}
+
+// ── ADMINS ────────────────────────────────────────────────────────────────────
+
+var SHEET_ADMINS   = "Admins";
+var ADM_HEADERS    = ["ID","Nama","Email","Password Hash","Role","Dibuat Pada"];
+var ADM_COLS       = { ID:1, NAME:2, EMAIL:3, PASSWORD_HASH:4, ROLE:5, CREATED_AT:6 };
+
+function admRowToObj(row) {
+  return {
+    id:           String(row[0]),
+    name:         String(row[1]),
+    email:        String(row[2]),
+    passwordHash: String(row[3]),
+    role:         String(row[4] || "admin"),
+    createdAt:    String(row[5] || ""),
+  };
+}
+
+function adminList(ss) {
+  var sheet = getOrCreateSheet(ss, SHEET_ADMINS, ADM_HEADERS);
+  return sheetData(sheet)
+    .filter(function(r){ return r[0] !== ""; })
+    .map(admRowToObj);
+}
+
+function adminCreate(ss, body) {
+  var sheet = getOrCreateSheet(ss, SHEET_ADMINS, ADM_HEADERS);
+  // Check duplicate email
+  var existing = sheetData(sheet).filter(function(r){ return String(r[2]).toLowerCase() === String(body.email||"").toLowerCase(); });
+  if (existing.length > 0) return { error: "Email sudah terdaftar" };
+  var id  = generateId();
+  var row = [id, body.name||"", body.email||"", body.passwordHash||"", body.role||"admin", nowISO()];
+  sheet.appendRow(row);
+  return admRowToObj(row);
+}
+
+function adminUpdatePassword(ss, id, passwordHash) {
+  var sheet = getOrCreateSheet(ss, SHEET_ADMINS, ADM_HEADERS);
+  var found = findRowById(sheet, 1, id);
+  if (!found) return { error: "Admin tidak ditemukan" };
+  sheet.getRange(found.row, ADM_COLS.PASSWORD_HASH).setValue(passwordHash);
+  return { success: true };
+}
+
+function adminUpdate(ss, body) {
+  var sheet = getOrCreateSheet(ss, SHEET_ADMINS, ADM_HEADERS);
+  var found = findRowById(sheet, 1, body.id);
+  if (!found) return { error: "Admin tidak ditemukan" };
+  if (body.name)  sheet.getRange(found.row, ADM_COLS.NAME).setValue(body.name);
+  if (body.email) sheet.getRange(found.row, ADM_COLS.EMAIL).setValue(body.email);
+  return { success: true };
+}
+
+function adminDelete(ss, id) {
+  var sheet = getOrCreateSheet(ss, SHEET_ADMINS, ADM_HEADERS);
+  var found = findRowById(sheet, 1, id);
+  if (!found) return { error: "Admin tidak ditemukan" };
+  sheet.deleteRow(found.row);
   return { success: true };
 }
 
