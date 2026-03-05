@@ -1,63 +1,73 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  CalendarClock,
-  Plus,
-  Trash2,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Save,
+  CalendarClock, Plus, Trash2, Clock,
+  ChevronLeft, ChevronRight, Loader2, Save, Settings, Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 
-interface Schedule {
-  date: string;
-  slots: string[];
+interface Schedule { date: string; slots: string[]; }
+interface ClinicSettings {
+  slotDurationMinutes: number;
+  workHourStart: string; workHourEnd: string;
+  breakStart: string; breakEnd: string;
 }
 
-const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-const monthNames = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-];
-
-const timeSlots = [
-  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
-  "11:00", "11:30", "13:00", "13:30", "14:00", "14:30",
-  "15:00", "15:30", "16:00",
-];
+const dayNames   = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+const monthNames = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
 
 function getMonday(d: Date) {
   const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-  date.setDate(diff);
-  date.setHours(0, 0, 0, 0);
+  const day  = date.getDay();
+  date.setDate(date.getDate() - day + (day === 0 ? -6 : 1));
+  date.setHours(0,0,0,0);
   return date;
 }
 
 function formatDateStr(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function generateSlots(s: ClinicSettings): string[] {
+  const slots: string[] = [];
+  const dur = s.slotDurationMinutes || 30;
+  const [sh, sm] = s.workHourStart.split(":").map(Number);
+  const [eh, em] = s.workHourEnd.split(":").map(Number);
+  const [bsh, bsm] = s.breakStart.split(":").map(Number);
+  const [beh, bem] = s.breakEnd.split(":").map(Number);
+  const startMin = sh*60+sm, endMin = eh*60+em, bsMin = bsh*60+bsm, beMin = beh*60+bem;
+  for (let m = startMin; m < endMin; m += dur) {
+    if (m >= bsMin && m < beMin) continue;
+    slots.push(`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`);
+  }
+  return slots;
 }
 
 export default function SchedulesPage() {
-  const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
-  const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [weekStart, setWeekStart]     = useState(() => getMonday(new Date()));
+  const [schedules, setSchedules]     = useState<Schedule[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [saving, setSaving]           = useState<string|null>(null);
+  const [selectedDate, setSelectedDate] = useState<string|null>(null);
   const [editingSlots, setEditingSlots] = useState<string[]>([]);
+  const [clinicSettings, setClinicSettings] = useState<ClinicSettings>({
+    slotDurationMinutes: 30, workHourStart: "08:00", workHourEnd: "16:00",
+    breakStart: "12:00", breakEnd: "13:00",
+  });
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
 
+  // Load settings once
   useEffect(() => {
-    fetchSchedules();
-  }, [weekStart]);
+    fetch("/api/settings").then(r => r.json()).then(data => {
+      setClinicSettings(data);
+      setTimeSlots(generateSlots(data));
+    }).catch(() => {
+      setTimeSlots(generateSlots(clinicSettings));
+    });
+  }, []);
 
-  async function fetchSchedules() {
+  const fetchSchedules = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/schedules?week=${formatDateStr(weekStart)}`);
@@ -65,38 +75,36 @@ export default function SchedulesPage() {
         const data = await res.json();
         setSchedules(Array.isArray(data) ? data : []);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
     setLoading(false);
-  }
+  }, [weekStart]);
+
+  useEffect(() => { fetchSchedules(); }, [fetchSchedules]);
 
   function startEditing(date: string) {
-    const existing = schedules.find((s) => s.date === date);
+    const existing = schedules.find(s => s.date === date);
     setSelectedDate(date);
     setEditingSlots(existing?.slots || []);
   }
 
   function toggleSlot(slot: string) {
-    setEditingSlots((prev) =>
-      prev.includes(slot) ? prev.filter((s) => s !== slot) : [...prev, slot]
-    );
+    setEditingSlots(prev => prev.includes(slot) ? prev.filter(s => s !== slot) : [...prev, slot]);
   }
+
+  function selectAll()  { setEditingSlots([...timeSlots]); }
+  function clearAll()   { setEditingSlots([]); }
 
   async function saveSchedule() {
     if (!selectedDate) return;
     setSaving(selectedDate);
     try {
       await fetch("/api/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date: selectedDate, slots: editingSlots }),
       });
       await fetchSchedules();
       setSelectedDate(null);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
     setSaving(null);
   }
 
@@ -104,44 +112,50 @@ export default function SchedulesPage() {
     setSaving(date);
     try {
       await fetch("/api/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, slots: [] }),
       });
       await fetchSchedules();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
     setSaving(null);
   }
 
-  const prevWeek = () => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() - 7);
-    setWeekStart(d);
-  };
-
-  const nextWeek = () => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + 7);
-    setWeekStart(d);
-  };
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
+  const prevWeek = () => { const d=new Date(weekStart); d.setDate(d.getDate()-7); setWeekStart(d); };
+  const nextWeek = () => { const d=new Date(weekStart); d.setDate(d.getDate()+7); setWeekStart(d); };
+  const weekEnd  = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+6);
 
   return (
     <div className="pb-4">
-      <div className="mb-6">
-        <h1 className="text-xl sm:text-2xl font-extrabold text-[#3a3f52] flex items-center gap-2">
-          <CalendarClock className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: "#F7A5A5" }} />
-          Kelola Jadwal Praktik
-        </h1>
-        <p className="text-xs sm:text-sm text-[#5D688A]/65 mt-1">Atur slot waktu yang tersedia untuk pasien</p>
+      {/* Header */}
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#3a3f52] flex items-center gap-2">
+            <CalendarClock className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: "#F7A5A5" }} />
+            Kelola Jadwal Praktik
+          </h1>
+          <p className="text-xs sm:text-sm text-[#5D688A]/65 mt-1">Atur slot waktu yang tersedia untuk pasien</p>
+        </div>
+        <Link href="/dashboard/settings"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:scale-[1.02]"
+          style={{ background: "rgba(93,104,138,0.1)", color: "#5D688A", border: "1px solid rgba(93,104,138,0.15)" }}>
+          <Settings className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Atur Durasi</span>
+          <span className="sm:hidden">{clinicSettings.slotDurationMinutes}mnt</span>
+        </Link>
+      </div>
+
+      {/* Slot duration info */}
+      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl mb-5 text-xs font-semibold"
+        style={{ background: "rgba(247,165,165,0.1)", border: "1px solid rgba(247,165,165,0.2)", color: "#5D688A" }}>
+        <Sparkles className="w-3.5 h-3.5" style={{ color: "#F7A5A5" }} />
+        Durasi slot: <strong>{clinicSettings.slotDurationMinutes} menit</strong>
+        &nbsp;·&nbsp; {clinicSettings.workHourStart}–{clinicSettings.workHourEnd}
+        &nbsp;·&nbsp; Istirahat {clinicSettings.breakStart}–{clinicSettings.breakEnd}
+        &nbsp;·&nbsp; {timeSlots.length} slot/hari
       </div>
 
       {/* Week Navigation */}
-      <div className="glass flex items-center justify-between mb-6 rounded-2xl p-3 sm:p-4"
+      <div className="glass flex items-center justify-between mb-5 rounded-2xl p-3 sm:p-4"
         style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 4px 20px rgba(93,104,138,0.08)" }}>
         <button onClick={prevWeek} className="p-2.5 rounded-xl hover:bg-white/60 text-[#5D688A] transition-all tap-feedback">
           <ChevronLeft className="w-5 h-5" />
@@ -154,61 +168,67 @@ export default function SchedulesPage() {
         </button>
       </div>
 
-      {/* Slot Editor Modal — bottom sheet on mobile */}
+      {/* Slot Editor Modal */}
       {selectedDate && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ background: "rgba(58,63,82,0.45)", backdropFilter: "blur(8px)" }}
           onClick={() => setSelectedDate(null)}>
-          <div
-            className="modal-sheet glass sm:rounded-3xl max-w-lg w-full overflow-y-auto animate-slide-up"
-            style={{
-              border: "1px solid rgba(255,255,255,0.8)",
-              boxShadow: "0 20px 60px rgba(93,104,138,0.2)",
-              padding: "20px 20px 0 20px",
-            }}
-            onClick={(e) => e.stopPropagation()}>
+          <div className="modal-sheet glass sm:rounded-3xl max-w-lg w-full overflow-y-auto animate-slide-up"
+            style={{ border: "1px solid rgba(255,255,255,0.8)", boxShadow: "0 20px 60px rgba(93,104,138,0.2)", padding: "20px 20px 0 20px" }}
+            onClick={e => e.stopPropagation()}>
 
-            {/* Drag handle */}
             <div className="sm:hidden flex justify-center mb-3">
               <div className="w-10 h-1 rounded-full" style={{ background: "rgba(93,104,138,0.25)" }} />
             </div>
 
-            <h3 className="font-bold text-lg text-[#3a3f52] mb-1">Edit Jadwal</h3>
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="font-bold text-lg text-[#3a3f52]">Edit Jadwal</h3>
+              <span className="text-xs px-2 py-1 rounded-lg font-semibold"
+                style={{ background: "rgba(247,165,165,0.15)", color: "#5D688A" }}>
+                {clinicSettings.slotDurationMinutes} mnt/slot
+              </span>
+            </div>
             <p className="text-sm text-[#5D688A]/65 mb-4">
               {(() => {
                 const [y, mo, day] = selectedDate.split("-").map(Number);
-                const d = new Date(y, mo - 1, day);
+                const d = new Date(y, mo-1, day);
                 return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
               })()}
             </p>
 
-            <p className="text-xs font-semibold text-[#5D688A]/60 mb-3">Pilih slot waktu yang tersedia:</p>
+            {/* Quick actions */}
+            <div className="flex gap-2 mb-3">
+              <button onClick={selectAll}
+                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:scale-[1.02]"
+                style={{ background: "rgba(110,198,160,0.15)", color: "#3aaa7c", border: "1px solid rgba(110,198,160,0.3)" }}>
+                ✓ Pilih Semua ({timeSlots.length})
+              </button>
+              <button onClick={clearAll}
+                className="flex-1 py-2 rounded-xl text-xs font-bold transition-all hover:scale-[1.02]"
+                style={{ background: "rgba(247,165,165,0.15)", color: "#c0504f", border: "1px solid rgba(247,165,165,0.3)" }}>
+                ✕ Kosongkan
+              </button>
+            </div>
+
+            <p className="text-xs font-semibold text-[#5D688A]/60 mb-2">Pilih slot waktu tersedia:</p>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-5">
-              {timeSlots.map((slot) => (
+              {timeSlots.map(slot => (
                 <button key={slot} onClick={() => toggleSlot(slot)}
                   className="py-3 rounded-2xl text-sm font-semibold transition-all hover:scale-[1.04] active:scale-95 tap-feedback"
                   style={editingSlots.includes(slot) ? {
-                    background: "linear-gradient(135deg, #F7A5A5, #5D688A)",
-                    color: "white",
-                    boxShadow: "0 4px 12px rgba(247,165,165,0.4)"
+                    background: "linear-gradient(135deg,#F7A5A5,#5D688A)",
+                    color: "white", boxShadow: "0 4px 12px rgba(247,165,165,0.4)"
                   } : {
                     background: "rgba(255,255,255,0.7)",
-                    border: "1px solid rgba(93,104,138,0.15)",
-                    color: "#5D688A"
+                    border: "1px solid rgba(93,104,138,0.15)", color: "#5D688A"
                   }}>
                   {slot}
                 </button>
               ))}
             </div>
 
-            {/* Sticky action buttons — stick to bottom of sheet, above mobile nav */}
-            <div
-              className="sticky bottom-0 flex gap-3 py-4 bg-transparent"
-              style={{
-                // Extra bottom padding = safe-area-inset-bottom so buttons sit above iOS home bar
-                paddingBottom: "max(env(safe-area-inset-bottom, 8px), 8px)",
-                background: "linear-gradient(to bottom, rgba(255,242,239,0) 0%, rgba(255,242,239,0.97) 30%)",
-              }}>
+            <div className="sticky bottom-0 flex gap-3 py-4"
+              style={{ paddingBottom: "max(env(safe-area-inset-bottom,8px),8px)", background: "linear-gradient(to bottom,rgba(255,242,239,0) 0%,rgba(255,242,239,0.97) 30%)" }}>
               <button onClick={() => setSelectedDate(null)}
                 className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-[#5D688A] transition-all active:scale-95 tap-feedback"
                 style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(93,104,138,0.15)" }}>
@@ -216,7 +236,7 @@ export default function SchedulesPage() {
               </button>
               <button onClick={saveSchedule} disabled={!!saving}
                 className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-95 tap-feedback"
-                style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.3)" }}>
+                style={{ background: "linear-gradient(135deg,#5D688A,#7a88b0)", boxShadow: "0 6px 20px rgba(93,104,138,0.3)" }}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Simpan ({editingSlots.length} slot)
               </button>

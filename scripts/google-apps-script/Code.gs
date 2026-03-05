@@ -58,6 +58,8 @@ function doGet(e) {
     if (action === "sch_get")           return jsonResponse(schGet(ss, body.koasId, body.date));
     if (action === "sch_get_week")      return jsonResponse(schGetWeek(ss, body.koasId, body.weekStart));
     if (action === "sch_remove_slot")   return jsonResponse(schRemoveSlot(ss, body.koasId, body.date, body.time));
+    if (action === "settings_get")      return jsonResponse(settingsGet(ss));
+    if (action === "settings_set")      return jsonResponse(settingsSet(ss, body));
     if (action === "seed")              return jsonResponse(seedData(ss));
 
     return jsonResponse({ error: "Unknown action: " + action });
@@ -317,6 +319,64 @@ function schAddSlot(ss, koasId, date, time) {
     }
   } else {
     schSet(ss, koasId, date, [time]);
+  }
+  return { success: true };
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+
+var SHEET_SETTINGS = "Settings";
+
+function settingsGet(ss) {
+  var sheet = ss.getSheetByName(SHEET_SETTINGS);
+  if (!sheet) return { error: "Settings not found" };
+  var data = sheetData(sheet);
+  var result = {};
+  for (var i = 0; i < data.length; i++) {
+    var key = String(data[i][0]);
+    var val = data[i][1];
+    if (key) result[key] = val;
+  }
+  // Parse services JSON
+  if (result.services && typeof result.services === "string") {
+    try { result.services = JSON.parse(result.services); } catch(e) { result.services = []; }
+  }
+  // Parse numeric
+  if (result.slotDurationMinutes) result.slotDurationMinutes = parseInt(result.slotDurationMinutes);
+  return result;
+}
+
+function settingsSet(ss, body) {
+  var sheet = ss.getSheetByName(SHEET_SETTINGS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_SETTINGS);
+    sheet.getRange(1,1,1,2).setValues([["Key","Value"]]);
+    sheet.getRange(1,1,1,2).setFontWeight("bold").setBackground("#5D688A").setFontColor("#FFFFFF");
+    sheet.setFrozenRows(1);
+  }
+
+  var keys = ["clinicName","doctorName","phone","whatsapp","email","address",
+              "slotDurationMinutes","workHourStart","workHourEnd","breakStart","breakEnd",
+              "services","instagramUrl","lineId","announcement"];
+
+  // Load existing rows
+  var existing = {};
+  var rows = sheetData(sheet);
+  for (var i = 0; i < rows.length; i++) {
+    existing[String(rows[i][0])] = i + 2; // row number
+  }
+
+  for (var k = 0; k < keys.length; k++) {
+    var key = keys[k];
+    if (!(key in body)) continue;
+    var value = body[key];
+    if (Array.isArray(value)) value = JSON.stringify(value);
+    if (existing[key]) {
+      sheet.getRange(existing[key], 2).setValue(value);
+    } else {
+      sheet.appendRow([key, value]);
+      existing[key] = sheet.getLastRow();
+    }
   }
   return { success: true };
 }

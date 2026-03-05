@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Settings,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -20,6 +21,7 @@ const sidebarLinks = [
   { href: "/dashboard/appointments", label: "Janji Temu",     icon: Calendar,        emoji: "📅" },
   { href: "/dashboard/schedules",    label: "Jadwal",         icon: CalendarClock,   emoji: "🗓️" },
   { href: "/dashboard/logbook",      label: "E-Logbook",      icon: BookOpen,        emoji: "📖" },
+  { href: "/dashboard/settings",     label: "Pengaturan",     icon: Settings,        emoji: "⚙️" },
 ];
 
 const ToothLogo = () => (
