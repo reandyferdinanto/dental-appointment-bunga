@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import Link from "next/link";
+import TeethLoader from "@/components/ui/TeethLoader";
 import { ChevronLeft, ChevronRight, Clock, CalendarDays, Calendar } from "lucide-react";
 
 interface Schedule {
@@ -113,20 +114,7 @@ export default function JadwalPage() {
 
           {/* Schedule Grid */}
           {loading ? (
-            // Mobile: 2-col, Desktop: 7-col skeleton
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-              {[...Array(7)].map((_, i) => (
-                <div key={i} className="glass rounded-2xl p-4 animate-pulse"
-                  style={{ border: "1px solid rgba(255,255,255,0.6)" }}>
-                  <div className="h-4 rounded-lg w-16 mb-3" style={{ background: "rgba(93,104,138,0.1)" }} />
-                  <div className="h-3 rounded-lg w-24 mb-4" style={{ background: "rgba(93,104,138,0.08)" }} />
-                  <div className="space-y-2">
-                    <div className="h-7 rounded-xl" style={{ background: "rgba(93,104,138,0.08)" }} />
-                    <div className="h-7 rounded-xl" style={{ background: "rgba(93,104,138,0.06)" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TeethLoader message="Tunggu yaa, kami cek terlebih dahulu" />
           ) : (
             <>
               {/* Mobile: scrollable horizontal row */}

@@ -17,6 +17,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import TeethLoader from "@/components/ui/TeethLoader";
 
 const monthNames = [
   "Januari","Februari","Maret","April","Mei","Juni",
@@ -282,13 +283,35 @@ export default function BookingPage() {
             <div className="glass rounded-3xl p-4 sm:p-6 animate-slide-up"
               style={{ border: "1px solid rgba(255,255,255,0.75)", boxShadow: "0 8px 32px rgba(93,104,138,0.1)" }}>
 
+              {/* Keyframes for mini loading animations */}
+              <style>{`
+                @keyframes calBounce { 0%,100%{transform:translateY(0) rotate(-1deg);} 50%{transform:translateY(-7px) rotate(1deg);} }
+                @keyframes calFloat  { 0%,100%{transform:translateY(0);opacity:1;} 50%{transform:translateY(-5px);opacity:0.6;} }
+                @keyframes calDot    { 0%,80%,100%{transform:scale(1);opacity:0.35;} 40%{transform:scale(1.6);opacity:1;} }
+                @keyframes calShim   { 0%,100%{opacity:0.2;} 50%{opacity:0.85;} }
+              `}</style>
+
               {/* Card header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" style={{ color: "#F7A5A5" }} />
                   <h2 className="font-bold text-[#3a3f52]">Pilih Tanggal</h2>
                 </div>
-                {loadingMonth && <Loader2 className="w-4 h-4 animate-spin" style={{ color: "#F7A5A5" }} />}
+                {/* Mini teeth pill — shows when re-fetching (month nav) after first load */}
+                {loadingMonth && Object.keys(monthSlots).length > 0 && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold"
+                    style={{ background:"rgba(247,165,165,0.1)", color:"#5D688A", border:"1px solid rgba(247,165,165,0.2)" }}>
+                    <svg viewBox="0 0 18 10" xmlns="http://www.w3.org/2000/svg" className="w-4 h-2.5"
+                      style={{ animation:"calShim 1s ease-in-out infinite" }}>
+                      <rect x="0"  y="0" width="5"   height="6.5" rx="2" fill="#F7A5A5"/>
+                      <rect x="6"  y="0" width="6"   height="8"   rx="2" fill="#FFDBB6"/>
+                      <rect x="13" y="0" width="5"   height="6.5" rx="2" fill="#F7A5A5"/>
+                      <rect x="0"  y="7" width="5"   height="3"   rx="1" fill="#F7A5A5" opacity="0.45"/>
+                      <rect x="6"  y="8.5" width="6" height="1.5" rx="1" fill="#FFDBB6" opacity="0.45"/>
+                    </svg>
+                    Memuat...
+                  </div>
+                )}
               </div>
 
               {/* Month navigation */}
@@ -316,20 +339,74 @@ export default function BookingPage() {
                 ))}
               </div>
 
-              {/* Calendar grid */}
+              {/* ── FIRST LOAD: full mini teeth banner instead of calendar grid ── */}
+              {loadingMonth && Object.keys(monthSlots).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-6 gap-2.5 select-none mb-4">
+                  {/* Bouncing teeth circle */}
+                  <div className="relative w-20 h-20 rounded-full flex items-center justify-center"
+                    style={{
+                      background: "rgba(255,255,255,0.65)",
+                      border: "1.5px solid rgba(247,165,165,0.3)",
+                      boxShadow: "0 4px 18px rgba(247,165,165,0.18)",
+                      animation: "calBounce 1.6s ease-in-out infinite",
+                    }}>
+                    <svg viewBox="0 0 72 56" xmlns="http://www.w3.org/2000/svg" className="w-14 h-11">
+                      {/* top gum */}
+                      <rect x="3" y="5"  width="66" height="10" rx="5" fill="#F7A5A5" opacity="0.85"/>
+                      {/* top teeth */}
+                      <rect x="5"  y="11" width="12" height="16" rx="3.5" fill="white" stroke="#F7A5A5" strokeWidth="1.2"/>
+                      <rect x="19" y="10" width="13" height="18" rx="3.5" fill="white" stroke="#FFDBB6" strokeWidth="1.2"/>
+                      <rect x="34" y="9"  width="15" height="20" rx="4"   fill="white" stroke="#F7A5A5" strokeWidth="1.2"/>
+                      <rect x="51" y="10" width="13" height="18" rx="3.5" fill="white" stroke="#FFDBB6" strokeWidth="1.2"/>
+                      {/* shine */}
+                      <circle cx="39" cy="14" r="2" fill="white" opacity="0.9"/>
+                      {/* bottom gum */}
+                      <rect x="3" y="41" width="66" height="10" rx="5" fill="#FFDBB6" opacity="0.85"/>
+                      {/* bottom teeth */}
+                      <rect x="6"  y="30" width="11" height="14" rx="3.5" fill="white" stroke="#FFDBB6" strokeWidth="1.2"/>
+                      <rect x="20" y="29" width="12" height="15" rx="3.5" fill="white" stroke="#F7A5A5" strokeWidth="1.2"/>
+                      <rect x="34" y="28" width="14" height="17" rx="4"   fill="white" stroke="#FFDBB6" strokeWidth="1.2"/>
+                      <rect x="51" y="29" width="12" height="15" rx="3.5" fill="white" stroke="#F7A5A5" strokeWidth="1.2"/>
+                      {/* toothbrush handle */}
+                      <rect x="46" y="46" width="22" height="7"  rx="3.5" fill="#5D688A" opacity="0.8"
+                        style={{ animation:"calShim 1.6s ease-in-out infinite", transformOrigin:"46px 50px" }}/>
+                      <rect x="26" y="44" width="22" height="9"  rx="3.5" fill="#7a88b0"
+                        style={{ animation:"calShim 1.6s ease-in-out infinite" }}/>
+                      {[28,32,36,40,44].map(x => (
+                        <line key={x} x1={x} y1="44" x2={x} y2="39" stroke="white" strokeWidth="1.8" strokeLinecap="round"/>
+                      ))}
+                    </svg>
+                    <span className="absolute -top-1.5 -right-0.5 text-sm"
+                      style={{ animation:"calFloat 2s ease-in-out infinite" }}>✨</span>
+                    <span className="absolute -bottom-1 -left-1 text-xs"
+                      style={{ animation:"calFloat 2.3s ease-in-out infinite 0.5s" }}>🦷</span>
+                  </div>
+                  <p className="text-xs font-bold text-[#3a3f52]">Tunggu yaa, kami cek dulu 🦷</p>
+                  <div className="flex gap-1">
+                    {[0,1,2].map(i => (
+                      <div key={i} className="w-1.5 h-1.5 rounded-full"
+                        style={{
+                          background: "linear-gradient(135deg,#F7A5A5,#5D688A)",
+                          animation: "calDot 1.2s ease-in-out infinite",
+                          animationDelay: `${i * 0.2}s`,
+                        }}/>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+              /* ── Calendar grid ── */
               <div className="grid grid-cols-7 gap-1 mb-4">
                 {Array.from({ length: firstDay }).map((_, i) => <div key={`e-${i}`} />)}
-
                 {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day     = i + 1;
-                  const dateStr = toDateStr(calYear, calMonth, day);
+                  const day      = i + 1;
+                  const dateStr  = toDateStr(calYear, calMonth, day);
                   const cellDate = new Date(calYear, calMonth, day);
                   const isPast   = cellDate < todayDate;
                   const isSunday = cellDate.getDay() === 0;
                   const isToday  = dateStr === todayStr;
-                  const isSelected = selectedDate === dateStr;
-                  const isDisabled = isPast || isSunday;
-                  const count    = monthSlots[dateStr] ?? -1; // -1 = not loaded yet
+                  const isSelected  = selectedDate === dateStr;
+                  const isDisabled  = isPast || isSunday;
+                  const count    = monthSlots[dateStr] ?? -1;
                   const hasSlots = !isDisabled && count > 0;
                   const noSlots  = !isDisabled && count === 0;
                   const tier     = hasSlots ? slotTier(count) : "none";
@@ -347,14 +424,9 @@ export default function BookingPage() {
                         } : isToday && !isDisabled ? {
                           background: "rgba(247,165,165,0.15)",
                           border: "1.5px solid rgba(247,165,165,0.55)",
-                        } : isDisabled ? {
-                          opacity: 0.25,
-                        } : noSlots ? {
-                          opacity: 0.35,
-                        } : {
-                          background: "rgba(255,255,255,0.5)",
-                          border: "1px solid rgba(93,104,138,0.08)",
-                        }),
+                        } : isDisabled ? { opacity: 0.25 }
+                          : noSlots  ? { opacity: 0.35 }
+                          : { background:"rgba(255,255,255,0.5)", border:"1px solid rgba(93,104,138,0.08)" }),
                         cursor: isDisabled || noSlots ? "not-allowed" : "pointer",
                       }}>
 
@@ -369,25 +441,45 @@ export default function BookingPage() {
                         {day}
                       </span>
 
-                      {/* Slot availability dot */}
-                      {!isDisabled && count >= 0 && (
-                        <span className="mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{
-                            background: isSelected ? "rgba(255,255,255,0.8)"
-                              : count === 0 ? "rgba(93,104,138,0.2)"
-                              : tierColors[tier],
-                          }} />
+                      {/* ── Indicator below day number ── */}
+                      {!isDisabled && (
+                        loadingMonth && count === -1 ? (
+                          /* Shimmer mini-teeth while this cell's data is loading */
+                          <svg viewBox="0 0 16 9" xmlns="http://www.w3.org/2000/svg"
+                            className="mt-0.5 w-4 h-2"
+                            style={{
+                              animation: "calShim 1.1s ease-in-out infinite",
+                              animationDelay: `${(i % 7) * 0.07}s`,
+                            }}>
+                            {/* top gum strip */}
+                            <rect x="0" y="0" width="16" height="2.5" rx="1.2" fill="#F7A5A5" opacity="0.6"/>
+                            {/* two mini top teeth */}
+                            <rect x="0.5" y="2"   width="6.5" height="4" rx="1.5" fill="white" stroke="#F7A5A5" strokeWidth="0.6"/>
+                            <rect x="8.5" y="2"   width="7"   height="4" rx="1.5" fill="white" stroke="#FFDBB6" strokeWidth="0.6"/>
+                            {/* bottom gum strip */}
+                            <rect x="0" y="6.5" width="16" height="2.5" rx="1.2" fill="#FFDBB6" opacity="0.55"/>
+                          </svg>
+                        ) : count >= 0 ? (
+                          /* Normal colored dot when loaded */
+                          <span className="mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{
+                              background: isSelected ? "rgba(255,255,255,0.8)"
+                                : count === 0 ? "rgba(93,104,138,0.2)"
+                                : tierColors[tier],
+                            }}/>
+                        ) : null
                       )}
 
-                      {/* "Hari ini" badge */}
+                      {/* Today badge */}
                       {isToday && !isSelected && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
-                          style={{ background: "#F7A5A5" }} />
+                          style={{ background: "#F7A5A5" }}/>
                       )}
                     </button>
                   );
                 })}
               </div>
+              )}
 
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 mb-4">
@@ -449,10 +541,7 @@ export default function BookingPage() {
               })()}
 
               {loadingSlots ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#F7A5A5" }} />
-                  <p className="text-xs text-[#5D688A]/55">Memuat slot waktu...</p>
-                </div>
+                <TeethLoader message="Tunggu yaa, kami cek slot yang tersedia" />
               ) : availableSlots.length > 0 ? (
                 <>
                   <p className="text-xs font-semibold text-[#5D688A]/55 mb-3">
