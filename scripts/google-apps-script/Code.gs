@@ -1,131 +1,74 @@
 /**
  * ============================================================
  *  drg. Natasya Bunga Maureen — Google Apps Script Database
- *  Deploy sebagai: Web App → Execute as: Me → Who has access: Anyone
- * ============================================================
- *
- *  Sheet names (tabs):
- *    Appointments  — janji temu pasien
- *    Logbook       — catatan tindakan medis
- *    Schedules     — jadwal slot waktu tersedia
- *
- *  API endpoint: POST /exec  dengan JSON body { action, ...params }
+ *  Deploy: Web App → Execute as: Me → Who has access: Anyone
  * ============================================================
  */
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-var SPREADSHEET_ID = ""; // ← ISI dengan Spreadsheet ID kamu
-var SECRET_TOKEN   = ""; // ← ISI dengan token rahasia (bebas, asal sama dengan GSHEET_SECRET di .env)
+var SPREADSHEET_ID = "1q1CUP-MoY_ZcJHP3nGtNkODW29bY8MnG12RBHXdtRD4";
+var SECRET_TOKEN   = "bunga-secret-2024";
 
-// Sheet tab names
 var SHEET_APPOINTMENTS = "Appointments";
 var SHEET_LOGBOOK      = "Logbook";
 var SHEET_SCHEDULES    = "Schedules";
 
 // ── COLUMN DEFINITIONS ───────────────────────────────────────────────────────
 
-// Appointments columns  (A=1 … M=13)
 var APT_COLS = {
-  ID:            1,   // A — unique ID
-  PATIENT_NAME:  2,   // B — nama pasien
-  PATIENT_PHONE: 3,   // C — no. HP pasien
-  PATIENT_EMAIL: 4,   // D — email pasien (opsional)
-  KOAS_ID:       5,   // E — ID koas (default: bunga)
-  DATE:          6,   // F — tanggal (YYYY-MM-DD)
-  TIME:          7,   // G — jam (HH:mm)
-  COMPLAINT:     8,   // H — keluhan
-  STATUS:        9,   // I — pending / confirmed / completed / cancelled
-  NOTES:         10,  // J — catatan dokter
-  CREATED_AT:    11,  // K — timestamp dibuat
+  ID: 1, PATIENT_NAME: 2, PATIENT_PHONE: 3, PATIENT_EMAIL: 4,
+  KOAS_ID: 5, DATE: 6, TIME: 7, COMPLAINT: 8,
+  STATUS: 9, NOTES: 10, CREATED_AT: 11,
 };
 
-// Logbook columns  (A=1 … K=11)
 var LOG_COLS = {
-  ID:               1,   // A
-  KOAS_ID:          2,   // B
-  APPOINTMENT_ID:   3,   // C — opsional
-  DATE:             4,   // D
-  PATIENT_INITIALS: 5,   // E — inisial pasien
-  PROCEDURE_TYPE:   6,   // F — jenis tindakan
-  TOOTH_NUMBER:     7,   // G — nomor gigi (opsional)
-  DIAGNOSIS:        8,   // H
-  TREATMENT:        9,   // I
-  SUPERVISOR_NAME:  10,  // J
-  COMPETENCY_LEVEL: 11,  // K — observed / assisted / performed
-  NOTES:            12,  // L
-  CREATED_AT:       13,  // M
+  ID: 1, KOAS_ID: 2, APPOINTMENT_ID: 3, DATE: 4,
+  PATIENT_INITIALS: 5, PROCEDURE_TYPE: 6, TOOTH_NUMBER: 7,
+  DIAGNOSIS: 8, TREATMENT: 9, SUPERVISOR_NAME: 10,
+  COMPETENCY_LEVEL: 11, NOTES: 12, CREATED_AT: 13,
 };
 
-// Schedules columns  (A=1 … D=4)
-var SCH_COLS = {
-  KOAS_ID:    1,  // A
-  DATE:       2,  // B — YYYY-MM-DD
-  SLOTS:      3,  // C — JSON array string: ["09:00","09:30",...]
-  UPDATED_AT: 4,  // D
-};
+var SCH_COLS = { KOAS_ID: 1, DATE: 2, SLOTS: 3, UPDATED_AT: 4 };
 
 // ── ENTRY POINT ───────────────────────────────────────────────────────────────
 
-/**
- * doGet handles ALL requests.
- *
- * Clients send:  GET ?payload=<urlEncoded JSON>
- * This avoids the Apps Script POST→GET redirect that drops the request body.
- *
- * Fallback: if no payload param, return health-check JSON.
- */
 function doGet(e) {
   try {
     var rawPayload = (e && e.parameter && e.parameter.payload) ? e.parameter.payload : null;
     if (!rawPayload) {
-      return jsonResponse({ status: "ok", app: "drg-bunga-db", version: "1.0" });
+      return jsonResponse({ status: "ok", app: "drg-bunga-db", version: "2.0" });
     }
-
     var body   = JSON.parse(rawPayload);
-    var token  = body.token || "";
+    var token  = body.token  || "";
     var action = body.action || "";
 
-    // Auth check (skip if SECRET_TOKEN not set)
-    if (SECRET_TOKEN && token !== SECRET_TOKEN) {
-      return jsonResponse({ error: "Unauthorized" });
-    }
+    if (SECRET_TOKEN && token !== SECRET_TOKEN) return jsonResponse({ error: "Unauthorized" });
 
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 
-    // ── Appointments ──────────────────────────────────
     if (action === "apt_create")        return jsonResponse(aptCreate(ss, body));
     if (action === "apt_list")          return jsonResponse(aptList(ss));
     if (action === "apt_get")           return jsonResponse(aptGet(ss, body.id));
     if (action === "apt_update_status") return jsonResponse(aptUpdateStatus(ss, body.id, body.status));
     if (action === "apt_delete")        return jsonResponse(aptDelete(ss, body.id));
-
-    // ── Logbook ───────────────────────────────────────
     if (action === "log_create")        return jsonResponse(logCreate(ss, body));
     if (action === "log_list")          return jsonResponse(logList(ss, body.koasId));
     if (action === "log_delete")        return jsonResponse(logDelete(ss, body.id));
-
-    // ── Schedules ─────────────────────────────────────
     if (action === "sch_set")           return jsonResponse(schSet(ss, body.koasId, body.date, body.slots));
     if (action === "sch_get")           return jsonResponse(schGet(ss, body.koasId, body.date));
     if (action === "sch_get_week")      return jsonResponse(schGetWeek(ss, body.koasId, body.weekStart));
     if (action === "sch_remove_slot")   return jsonResponse(schRemoveSlot(ss, body.koasId, body.date, body.time));
-
-    // ── Seed ──────────────────────────────────────────
     if (action === "seed")              return jsonResponse(seedData(ss));
 
     return jsonResponse({ error: "Unknown action: " + action });
-
   } catch (err) {
     return jsonResponse({ error: err.toString() });
   }
 }
 
-// Keep doPost as fallback (some clients may still POST directly to the exec URL)
 function doPost(e) {
   try {
-    var body = JSON.parse(e.postData.contents);
-    // Reuse doGet logic by injecting into parameter
-    e.parameter = e.parameter || {};
+    e.parameter         = e.parameter || {};
     e.parameter.payload = e.postData.contents;
     return doGet(e);
   } catch (err) {
@@ -141,24 +84,17 @@ function jsonResponse(data) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-function generateId() {
-  return Utilities.getUuid().replace(/-/g, "").substring(0, 16);
-}
-
-function nowISO() {
-  return new Date().toISOString();
-}
+function generateId() { return Utilities.getUuid().replace(/-/g, "").substring(0, 16); }
+function nowISO()     { return new Date().toISOString(); }
+function pad2(n)      { return n < 10 ? "0" + n : "" + n; }
+function fmtDate(d)   { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
 
 function getOrCreateSheet(ss, name, headers) {
   var sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
-    // Write header row
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.getRange(1, 1, 1, headers.length)
-      .setFontWeight("bold")
-      .setBackground("#5D688A")
-      .setFontColor("#FFFFFF");
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#5D688A").setFontColor("#FFFFFF");
     sheet.setFrozenRows(1);
   }
   return sheet;
@@ -173,205 +109,115 @@ function sheetData(sheet) {
 function findRowById(sheet, idCol, id) {
   var data = sheetData(sheet);
   for (var i = 0; i < data.length; i++) {
-    if (String(data[i][idCol - 1]) === String(id)) {
-      return { row: i + 2, data: data[i] }; // +2 because row 1 = header
-    }
+    if (String(data[i][idCol - 1]) === String(id)) return { row: i + 2, data: data[i] };
   }
   return null;
 }
 
 // ── APPOINTMENTS ──────────────────────────────────────────────────────────────
 
-var APT_HEADERS = [
-  "ID", "Nama Pasien", "No. HP", "Email",
-  "Koas ID", "Tanggal", "Jam", "Keluhan",
-  "Status", "Catatan Dokter", "Dibuat Pada"
-];
+var APT_HEADERS = ["ID","Nama Pasien","No. HP","Email","Koas ID","Tanggal","Jam","Keluhan","Status","Catatan Dokter","Dibuat Pada"];
 
 function aptRowToObj(row) {
   return {
-    id:           String(row[APT_COLS.ID - 1]),
-    patientName:  String(row[APT_COLS.PATIENT_NAME - 1]),
-    patientPhone: String(row[APT_COLS.PATIENT_PHONE - 1]),
-    patientEmail: String(row[APT_COLS.PATIENT_EMAIL - 1] || ""),
-    koasId:       String(row[APT_COLS.KOAS_ID - 1]),
-    date:         String(row[APT_COLS.DATE - 1]),
-    time:         String(row[APT_COLS.TIME - 1]),
-    complaint:    String(row[APT_COLS.COMPLAINT - 1]),
-    status:       String(row[APT_COLS.STATUS - 1]),
-    notes:        String(row[APT_COLS.NOTES - 1] || ""),
-    createdAt:    String(row[APT_COLS.CREATED_AT - 1]),
+    id: String(row[0]), patientName: String(row[1]), patientPhone: String(row[2]),
+    patientEmail: String(row[3] || ""), koasId: String(row[4]),
+    date: String(row[5]), time: String(row[6]), complaint: String(row[7]),
+    status: String(row[8]), notes: String(row[9] || ""), createdAt: String(row[10]),
   };
 }
 
 function aptCreate(ss, body) {
   var sheet = getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
-
-  // Check & remove slot from schedule (prevent double booking)
   var slotRemoved = schRemoveSlot(ss, body.koasId || "bunga", body.date, body.time);
-  if (!slotRemoved.success) {
-    return { error: "Slot sudah tidak tersedia" };
-  }
+  if (!slotRemoved.success) return { error: "Slot sudah tidak tersedia" };
 
-  var id = generateId();
-  var row = new Array(Object.keys(APT_COLS).length).fill("");
-  row[APT_COLS.ID - 1]            = id;
-  row[APT_COLS.PATIENT_NAME - 1]  = body.patientName || "";
-  row[APT_COLS.PATIENT_PHONE - 1] = body.patientPhone || "";
-  row[APT_COLS.PATIENT_EMAIL - 1] = body.patientEmail || "";
-  row[APT_COLS.KOAS_ID - 1]       = body.koasId || "bunga";
-  row[APT_COLS.DATE - 1]          = body.date || "";
-  row[APT_COLS.TIME - 1]          = body.time || "";
-  row[APT_COLS.COMPLAINT - 1]     = body.complaint || "";
-  row[APT_COLS.STATUS - 1]        = "pending";
-  row[APT_COLS.NOTES - 1]         = "";
-  row[APT_COLS.CREATED_AT - 1]    = nowISO();
-
+  var id  = generateId();
+  var row = [id, body.patientName||"", body.patientPhone||"", body.patientEmail||"",
+             body.koasId||"bunga", body.date||"", body.time||"", body.complaint||"",
+             "pending", "", nowISO()];
   sheet.appendRow(row);
-
-  // Color-code by status
   aptColorRow(sheet, sheet.getLastRow(), "pending");
-
   return aptRowToObj(row);
 }
 
 function aptList(ss) {
-  var sheet = getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
-  var rows = sheetData(sheet);
-  var result = rows
-    .filter(function(r) { return r[0] !== ""; })
-    .map(aptRowToObj);
-  result.sort(function(a, b) {
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  var sheet  = getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
+  var result = sheetData(sheet).filter(function(r) { return r[0] !== ""; }).map(aptRowToObj);
+  result.sort(function(a, b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); });
   return result;
 }
 
 function aptGet(ss, id) {
   var sheet = getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
-  var found = findRowById(sheet, APT_COLS.ID, id);
-  if (!found) return null;
-  return aptRowToObj(found.data);
+  var found = findRowById(sheet, 1, id);
+  return found ? aptRowToObj(found.data) : null;
 }
 
 function aptUpdateStatus(ss, id, newStatus) {
   var sheet = getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
-  var found = findRowById(sheet, APT_COLS.ID, id);
+  var found = findRowById(sheet, 1, id);
   if (!found) return { error: "Appointment tidak ditemukan" };
-
   sheet.getRange(found.row, APT_COLS.STATUS).setValue(newStatus);
-
-  // If cancelled, restore the slot
-  if (newStatus === "cancelled") {
-    var apt = aptRowToObj(found.data);
-    schAddSlot(ss, apt.koasId, apt.date, apt.time);
-  }
-
+  if (newStatus === "cancelled") schAddSlot(ss, aptRowToObj(found.data).koasId, aptRowToObj(found.data).date, aptRowToObj(found.data).time);
   aptColorRow(sheet, found.row, newStatus);
-
-  var updatedRow = sheet.getRange(found.row, 1, 1, Object.keys(APT_COLS).length).getValues()[0];
-  return aptRowToObj(updatedRow);
+  return aptRowToObj(sheet.getRange(found.row, 1, 1, 11).getValues()[0]);
 }
 
 function aptDelete(ss, id) {
   var sheet = getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
-  var found = findRowById(sheet, APT_COLS.ID, id);
+  var found = findRowById(sheet, 1, id);
   if (!found) return { error: "Appointment tidak ditemukan" };
-
-  // Restore slot
   var apt = aptRowToObj(found.data);
   schAddSlot(ss, apt.koasId, apt.date, apt.time);
-
   sheet.deleteRow(found.row);
   return { success: true };
 }
 
 function aptColorRow(sheet, rowNum, status) {
-  var colors = {
-    pending:   "#FFF9F0",
-    confirmed: "#F0FFF4",
-    completed: "#F0F4FF",
-    cancelled: "#FFF0F0",
-  };
-  var color = colors[status] || "#FFFFFF";
-  sheet.getRange(rowNum, 1, 1, Object.keys(APT_COLS).length).setBackground(color);
+  var colors = { pending: "#FFF9F0", confirmed: "#F0FFF4", completed: "#F0F4FF", cancelled: "#FFF0F0" };
+  sheet.getRange(rowNum, 1, 1, 11).setBackground(colors[status] || "#FFFFFF");
 }
 
 // ── LOGBOOK ───────────────────────────────────────────────────────────────────
 
-var LOG_HEADERS = [
-  "ID", "Koas ID", "Appointment ID", "Tanggal",
-  "Inisial Pasien", "Jenis Tindakan", "No. Gigi",
-  "Diagnosis", "Treatment", "Pembimbing",
-  "Tingkat Kompetensi", "Catatan", "Dibuat Pada"
-];
+var LOG_HEADERS = ["ID","Koas ID","Appointment ID","Tanggal","Inisial Pasien","Jenis Tindakan","No. Gigi","Diagnosis","Treatment","Pembimbing","Tingkat Kompetensi","Catatan","Dibuat Pada"];
 
 function logRowToObj(row) {
   return {
-    id:               String(row[LOG_COLS.ID - 1]),
-    koasId:           String(row[LOG_COLS.KOAS_ID - 1]),
-    appointmentId:    String(row[LOG_COLS.APPOINTMENT_ID - 1] || ""),
-    date:             String(row[LOG_COLS.DATE - 1]),
-    patientInitials:  String(row[LOG_COLS.PATIENT_INITIALS - 1]),
-    procedureType:    String(row[LOG_COLS.PROCEDURE_TYPE - 1]),
-    toothNumber:      String(row[LOG_COLS.TOOTH_NUMBER - 1] || ""),
-    diagnosis:        String(row[LOG_COLS.DIAGNOSIS - 1]),
-    treatment:        String(row[LOG_COLS.TREATMENT - 1]),
-    supervisorName:   String(row[LOG_COLS.SUPERVISOR_NAME - 1]),
-    competencyLevel:  String(row[LOG_COLS.COMPETENCY_LEVEL - 1]),
-    notes:            String(row[LOG_COLS.NOTES - 1] || ""),
-    createdAt:        String(row[LOG_COLS.CREATED_AT - 1]),
+    id: String(row[0]), koasId: String(row[1]), appointmentId: String(row[2]||""),
+    date: String(row[3]), patientInitials: String(row[4]), procedureType: String(row[5]),
+    toothNumber: String(row[6]||""), diagnosis: String(row[7]), treatment: String(row[8]),
+    supervisorName: String(row[9]), competencyLevel: String(row[10]),
+    notes: String(row[11]||""), createdAt: String(row[12]),
   };
 }
 
 function logCreate(ss, body) {
   var sheet = getOrCreateSheet(ss, SHEET_LOGBOOK, LOG_HEADERS);
-
-  var id = generateId();
-  var row = new Array(Object.keys(LOG_COLS).length).fill("");
-  row[LOG_COLS.ID - 1]               = id;
-  row[LOG_COLS.KOAS_ID - 1]          = body.koasId || "bunga";
-  row[LOG_COLS.APPOINTMENT_ID - 1]   = body.appointmentId || "";
-  row[LOG_COLS.DATE - 1]             = body.date || "";
-  row[LOG_COLS.PATIENT_INITIALS - 1] = body.patientInitials || "";
-  row[LOG_COLS.PROCEDURE_TYPE - 1]   = body.procedureType || "";
-  row[LOG_COLS.TOOTH_NUMBER - 1]     = body.toothNumber || "";
-  row[LOG_COLS.DIAGNOSIS - 1]        = body.diagnosis || "";
-  row[LOG_COLS.TREATMENT - 1]        = body.treatment || "";
-  row[LOG_COLS.SUPERVISOR_NAME - 1]  = body.supervisorName || "";
-  row[LOG_COLS.COMPETENCY_LEVEL - 1] = body.competencyLevel || "observed";
-  row[LOG_COLS.NOTES - 1]            = body.notes || "";
-  row[LOG_COLS.CREATED_AT - 1]       = nowISO();
-
+  var id    = generateId();
+  var row   = [id, body.koasId||"bunga", body.appointmentId||"", body.date||"",
+               body.patientInitials||"", body.procedureType||"", body.toothNumber||"",
+               body.diagnosis||"", body.treatment||"", body.supervisorName||"",
+               body.competencyLevel||"observed", body.notes||"", nowISO()];
   sheet.appendRow(row);
-
-  // Color-code by competency
   var compColors = { observed: "#FFF9F0", assisted: "#F0F4FF", performed: "#F0FFF4" };
-  var color = compColors[body.competencyLevel] || "#FFFFFF";
-  sheet.getRange(sheet.getLastRow(), 1, 1, Object.keys(LOG_COLS).length).setBackground(color);
-
+  sheet.getRange(sheet.getLastRow(), 1, 1, 13).setBackground(compColors[body.competencyLevel] || "#FFFFFF");
   return logRowToObj(row);
 }
 
 function logList(ss, koasId) {
-  var sheet = getOrCreateSheet(ss, SHEET_LOGBOOK, LOG_HEADERS);
-  var rows = sheetData(sheet);
-  var result = rows
-    .filter(function(r) {
-      if (r[0] === "") return false;
-      if (koasId) return String(r[LOG_COLS.KOAS_ID - 1]) === koasId;
-      return true;
-    })
+  var sheet  = getOrCreateSheet(ss, SHEET_LOGBOOK, LOG_HEADERS);
+  var result = sheetData(sheet)
+    .filter(function(r) { return r[0] !== "" && (koasId ? String(r[1]) === koasId : true); })
     .map(logRowToObj);
-  result.sort(function(a, b) {
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  result.sort(function(a, b) { return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); });
   return result;
 }
 
 function logDelete(ss, id) {
   var sheet = getOrCreateSheet(ss, SHEET_LOGBOOK, LOG_HEADERS);
-  var found = findRowById(sheet, LOG_COLS.ID, id);
+  var found = findRowById(sheet, 1, id);
   if (!found) return { error: "Logbook entry tidak ditemukan" };
   sheet.deleteRow(found.row);
   return { success: true };
@@ -379,44 +225,31 @@ function logDelete(ss, id) {
 
 // ── SCHEDULES ─────────────────────────────────────────────────────────────────
 
-var SCH_HEADERS = ["Koas ID", "Tanggal", "Slot Tersedia (JSON)", "Diperbarui Pada"];
+var SCH_HEADERS = ["Koas ID","Tanggal","Slot Tersedia (JSON)","Diperbarui Pada"];
 
 function schRowToObj(row) {
-  var slotsRaw = row[SCH_COLS.SLOTS - 1];
   var slots = [];
-  try { slots = JSON.parse(String(slotsRaw)); } catch(e) { slots = []; }
-  return {
-    date:  String(row[SCH_COLS.DATE - 1]),
-    slots: Array.isArray(slots) ? slots.sort() : [],
-  };
+  try { slots = JSON.parse(String(row[2])); } catch(e) { slots = []; }
+  return { date: String(row[1]), slots: Array.isArray(slots) ? slots.sort() : [] };
 }
 
 function schFindRow(sheet, koasId, date) {
   var rows = sheetData(sheet);
   for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i][SCH_COLS.KOAS_ID - 1]) === koasId &&
-        String(rows[i][SCH_COLS.DATE - 1])    === date) {
-      return { row: i + 2, data: rows[i] };
-    }
+    if (String(rows[i][0]) === koasId && String(rows[i][1]) === date) return { row: i + 2, data: rows[i] };
   }
   return null;
 }
 
 function schSet(ss, koasId, date, slots) {
-  var sheet = getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
-  var found = schFindRow(sheet, koasId, date);
+  var sheet     = getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
+  var found     = schFindRow(sheet, koasId, date);
   var slotsJson = JSON.stringify(Array.isArray(slots) ? slots.sort() : []);
-
   if (found) {
-    sheet.getRange(found.row, SCH_COLS.SLOTS).setValue(slotsJson);
-    sheet.getRange(found.row, SCH_COLS.UPDATED_AT).setValue(nowISO());
+    sheet.getRange(found.row, 3).setValue(slotsJson);
+    sheet.getRange(found.row, 4).setValue(nowISO());
   } else {
-    var row = ["", "", "", ""];
-    row[SCH_COLS.KOAS_ID - 1]    = koasId;
-    row[SCH_COLS.DATE - 1]       = date;
-    row[SCH_COLS.SLOTS - 1]      = slotsJson;
-    row[SCH_COLS.UPDATED_AT - 1] = nowISO();
-    sheet.appendRow(row);
+    sheet.appendRow([koasId, date, slotsJson, nowISO()]);
   }
   return { success: true, date: date, slots: slots };
 }
@@ -424,52 +257,43 @@ function schSet(ss, koasId, date, slots) {
 function schGet(ss, koasId, date) {
   var sheet = getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
   var found = schFindRow(sheet, koasId, date);
-  if (!found) return { date: date, slots: [] };
-  return schRowToObj(found.data);
+  return found ? schRowToObj(found.data) : { date: date, slots: [] };
 }
 
 function schGetWeek(ss, koasId, weekStart) {
+  var parts   = weekStart.split("-");
+  var base    = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
   var results = [];
-  // Parse YYYY-MM-DD as LOCAL date (not UTC) to avoid day-shift
-  var parts = weekStart.split("-");
-  var base = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
   for (var i = 0; i < 7; i++) {
     var d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i, 0, 0, 0, 0);
-    var y = d.getFullYear();
-    var mo = d.getMonth() + 1;
-    var dy = d.getDate();
-    var dateStr = y + "-" + (mo < 10 ? "0" + mo : "" + mo) + "-" + (dy < 10 ? "0" + dy : "" + dy);
-    results.push(schGet(ss, koasId, dateStr));
+    results.push(schGet(ss, koasId, fmtDate(d)));
   }
   return results;
 }
 
 function schRemoveSlot(ss, koasId, date, time) {
-  var sheet = getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
-  var found = schFindRow(sheet, koasId, date);
+  var sheet    = getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
+  var found    = schFindRow(sheet, koasId, date);
   if (!found) return { success: false };
-
   var schedule = schRowToObj(found.data);
-  var idx = schedule.slots.indexOf(time);
+  var idx      = schedule.slots.indexOf(time);
   if (idx === -1) return { success: false };
-
   schedule.slots.splice(idx, 1);
-  sheet.getRange(found.row, SCH_COLS.SLOTS).setValue(JSON.stringify(schedule.slots));
-  sheet.getRange(found.row, SCH_COLS.UPDATED_AT).setValue(nowISO());
+  sheet.getRange(found.row, 3).setValue(JSON.stringify(schedule.slots));
+  sheet.getRange(found.row, 4).setValue(nowISO());
   return { success: true };
 }
 
 function schAddSlot(ss, koasId, date, time) {
   var sheet = getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
   var found = schFindRow(sheet, koasId, date);
-
   if (found) {
     var schedule = schRowToObj(found.data);
     if (schedule.slots.indexOf(time) === -1) {
       schedule.slots.push(time);
       schedule.slots.sort();
-      sheet.getRange(found.row, SCH_COLS.SLOTS).setValue(JSON.stringify(schedule.slots));
-      sheet.getRange(found.row, SCH_COLS.UPDATED_AT).setValue(nowISO());
+      sheet.getRange(found.row, 3).setValue(JSON.stringify(schedule.slots));
+      sheet.getRange(found.row, 4).setValue(nowISO());
     }
   } else {
     schSet(ss, koasId, date, [time]);
@@ -477,59 +301,38 @@ function schAddSlot(ss, koasId, date, time) {
   return { success: true };
 }
 
+// ── SEED DATA ─────────────────────────────────────────────────────────────────
+
 function seedData(ss) {
-  // Create sheets with headers
   getOrCreateSheet(ss, SHEET_APPOINTMENTS, APT_HEADERS);
-  getOrCreateSheet(ss, SHEET_LOGBOOK, LOG_HEADERS);
-  getOrCreateSheet(ss, SHEET_SCHEDULES, SCH_HEADERS);
+  getOrCreateSheet(ss, SHEET_LOGBOOK,      LOG_HEADERS);
+  getOrCreateSheet(ss, SHEET_SCHEDULES,    SCH_HEADERS);
 
-  var slots = ["09:00","09:30","10:00","10:30","11:00","13:00","13:30","14:00","14:30","15:00"];
-  var today = new Date();
+  var defaultSlots = ["09:00","09:30","10:00","10:30","11:00","13:00","13:30","14:00","14:30","15:00"];
+  var today        = new Date();
 
-  function fmtDate(d) {
-    var mo = d.getMonth() + 1;
-    var dy = d.getDate();
-    return d.getFullYear() + "-" + (mo < 10 ? "0" + mo : "" + mo) + "-" + (dy < 10 ? "0" + dy : "" + dy);
-  }
-
-  // Seed schedules: next 14 days (skip Sundays)
   for (var i = 0; i < 14; i++) {
     var d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i, 0, 0, 0, 0);
-    if (d.getDay() === 0) continue; // skip Sunday
-    schSet(ss, "bunga", fmtDate(d), slots);
+    if (d.getDay() === 0) continue;
+    schSet(ss, "bunga", fmtDate(d), defaultSlots);
   }
 
-  // Seed 1 sample appointment (tomorrow)
-  var tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  var tomorrow  = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  var yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+
   aptCreate(ss, {
-    patientName: "Budi Santoso",
-    patientPhone: "081234567890",
-    patientEmail: "",
-    koasId: "bunga",
-    date: fmtDate(tomorrow),
-    time: "09:00",
+    patientName: "Budi Santoso", patientPhone: "081234567890", patientEmail: "",
+    koasId: "bunga", date: fmtDate(tomorrow), time: "09:30",
     complaint: "Gigi geraham kiri bawah berlubang dan sakit saat makan",
   });
 
-  // Seed 1 sample logbook (yesterday)
-  var yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
   logCreate(ss, {
-    koasId: "bunga",
-    appointmentId: "",
-    date: fmtDate(yesterday),
-    patientInitials: "Tn. BS",
-    procedureType: "Penambalan Komposit",
-    toothNumber: "36",
-    diagnosis: "Karies dentin",
-    treatment: "Penambalan komposit kelas I",
-    supervisorName: "drg. Hendra Wijaya, Sp.KG",
-    competencyLevel: "performed",
+    koasId: "bunga", appointmentId: "", date: fmtDate(yesterday),
+    patientInitials: "Tn. BS", procedureType: "Penambalan Komposit", toothNumber: "36",
+    diagnosis: "Karies dentin", treatment: "Penambalan komposit kelas I",
+    supervisorName: "drg. Hendra Wijaya, Sp.KG", competencyLevel: "performed",
     notes: "Pasien kooperatif",
   });
 
-  return {
-    success: true,
-    message: "Data seed berhasil! Sheet Appointments, Logbook, dan Schedules telah dibuat.",
-  };
+  return { success: true, message: "Seed berhasil! Sheets dibuat dengan data awal." };
 }
-
