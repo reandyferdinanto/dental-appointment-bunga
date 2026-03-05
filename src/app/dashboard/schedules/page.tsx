@@ -49,6 +49,14 @@ function generateSlots(s: ClinicSettings): string[] {
   return slots;
 }
 
+function normalizeTime(val: unknown, fallback: string): string {
+  if (!val) return fallback;
+  const s = String(val);
+  if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0, 5);
+  const m = s.match(/T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : fallback;
+}
+
 // Build a full 7-day schedule map from partial API data
 function buildWeekMap(weekStart: Date, data: Schedule[]): Schedule[] {
   return Array.from({ length: 7 }, (_, i) => {
@@ -81,10 +89,10 @@ export default function SchedulesPage() {
         if (data && typeof data === "object" && data.workHourStart) {
           setClinicSettings({
             slotDurationMinutes: Number(data.slotDurationMinutes) || 30,
-            workHourStart: data.workHourStart || "08:00",
-            workHourEnd:   data.workHourEnd   || "16:00",
-            breakStart:    data.breakStart    || "12:00",
-            breakEnd:      data.breakEnd      || "13:00",
+            workHourStart: normalizeTime(data.workHourStart, "08:00"),
+            workHourEnd:   normalizeTime(data.workHourEnd,   "16:00"),
+            breakStart:    normalizeTime(data.breakStart,    "12:00"),
+            breakEnd:      normalizeTime(data.breakEnd,      "13:00"),
           });
           settingsLoadedRef.current = true;
         }

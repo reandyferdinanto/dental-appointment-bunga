@@ -113,7 +113,25 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/settings")
       .then(r => r.json())
-      .then(data => { setSettings(data); setLoading(false); })
+      .then(data => {
+        // Normalize time fields in case Google Sheets returns ISO date strings
+        const nt = (v: unknown, fb: string) => {
+          if (!v) return fb;
+          const s = String(v);
+          if (/^\d{1,2}:\d{2}/.test(s)) return s.slice(0, 5);
+          const m = s.match(/T(\d{2}):(\d{2})/);
+          return m ? `${m[1]}:${m[2]}` : fb;
+        };
+        setSettings({
+          ...data,
+          workHourStart: nt(data.workHourStart, "08:00"),
+          workHourEnd:   nt(data.workHourEnd,   "16:00"),
+          breakStart:    nt(data.breakStart,    "12:00"),
+          breakEnd:      nt(data.breakEnd,      "13:00"),
+          slotDurationMinutes: Number(data.slotDurationMinutes) || 30,
+        });
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
 
@@ -203,17 +221,28 @@ export default function SettingsPage() {
   const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     (e.currentTarget.style.borderColor = "rgba(93,104,138,0.18)");
 
+  const [saveError, setSaveError] = useState("");
+
   async function handleSave() {
     setSaving(true);
+    setSaveError("");
     try {
-      await fetch("/api/settings", {
+      const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (e) { console.error(e); }
+      const data = await res.json();
+      if (!res.ok || data?.error) {
+        setSaveError(data?.error || "Gagal menyimpan. Coba lagi.");
+      } else {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+      setSaveError("Koneksi gagal. Periksa jaringan Anda.");
+    }
     setSaving(false);
   }
 
@@ -241,6 +270,14 @@ export default function SettingsPage() {
           {saved ? "Tersimpan!" : "Simpan"}
         </button>
       </div>
+
+      {/* Save error banner */}
+      {saveError && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold"
+          style={{ background: "rgba(247,165,165,0.15)", border: "1px solid rgba(247,165,165,0.4)", color: "#c0504f" }}>
+          ✕ {saveError}
+        </div>
+      )}
 
       {/* ── Clinic Info ── */}
       <SectionCard title="Informasi Klinik" icon={Building2}>

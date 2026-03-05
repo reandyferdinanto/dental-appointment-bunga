@@ -335,19 +335,34 @@ var SHEET_SETTINGS = "Settings";
 function settingsGet(ss) {
   var sheet = ss.getSheetByName(SHEET_SETTINGS);
   if (!sheet) return { error: "Settings not found" };
-  var data = sheetData(sheet);
+
+  var last = sheet.getLastRow();
+  if (last < 2) return {};
+
+  // Use getValues for keys, getDisplayValues for values so time cells
+  // return "08:00" as a string instead of a JavaScript Date object
+  var keyRange  = sheet.getRange(2, 1, last - 1, 1).getValues();
+  var valRange  = sheet.getRange(2, 2, last - 1, 1).getValues();
+  var dispRange = sheet.getRange(2, 2, last - 1, 1).getDisplayValues();
+
+  var timeKeys = { workHourStart:1, workHourEnd:1, breakStart:1, breakEnd:1 };
+
   var result = {};
-  for (var i = 0; i < data.length; i++) {
-    var key = String(data[i][0]);
-    var val = data[i][1];
-    if (key) result[key] = val;
+  for (var i = 0; i < keyRange.length; i++) {
+    var key = String(keyRange[i][0]);
+    if (!key) continue;
+    // For time keys, prefer the display value (plain "HH:mm" string)
+    var val = timeKeys[key] ? dispRange[i][0] : valRange[i][0];
+    result[key] = val;
   }
+
   // Parse services JSON
   if (result.services && typeof result.services === "string") {
     try { result.services = JSON.parse(result.services); } catch(e) { result.services = []; }
   }
   // Parse numeric
   if (result.slotDurationMinutes) result.slotDurationMinutes = parseInt(result.slotDurationMinutes);
+
   return result;
 }
 
@@ -360,6 +375,9 @@ function settingsSet(ss, body) {
     sheet.setFrozenRows(1);
   }
 
+  // Time-like keys that must be stored as plain text (not auto-converted to Date)
+  var timeKeys = { workHourStart:1, workHourEnd:1, breakStart:1, breakEnd:1 };
+
   var keys = ["clinicName","doctorName","phone","whatsapp","email","address",
               "slotDurationMinutes","workHourStart","workHourEnd","breakStart","breakEnd",
               "services","instagramUrl","lineId","announcement"];
@@ -368,7 +386,7 @@ function settingsSet(ss, body) {
   var existing = {};
   var rows = sheetData(sheet);
   for (var i = 0; i < rows.length; i++) {
-    existing[String(rows[i][0])] = i + 2; // row number
+    existing[String(rows[i][0])] = i + 2; // 1-based row number
   }
 
   for (var k = 0; k < keys.length; k++) {
@@ -376,11 +394,20 @@ function settingsSet(ss, body) {
     if (!(key in body)) continue;
     var value = body[key];
     if (Array.isArray(value)) value = JSON.stringify(value);
+
+    var targetRow;
     if (existing[key]) {
-      sheet.getRange(existing[key], 2).setValue(value);
+      targetRow = existing[key];
+      sheet.getRange(targetRow, 2).setValue(value);
     } else {
       sheet.appendRow([key, value]);
-      existing[key] = sheet.getLastRow();
+      targetRow = sheet.getLastRow();
+      existing[key] = targetRow;
+    }
+
+    // Force plain-text format on time fields so Sheets won't convert "08:00" → Date
+    if (timeKeys[key]) {
+      sheet.getRange(targetRow, 2).setNumberFormat("@");
     }
   }
   return { success: true };
