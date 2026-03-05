@@ -18,10 +18,21 @@ const API_URL = process.env.GSHEET_API_URL ?? "";
 const SECRET  = process.env.GSHEET_SECRET  ?? "";
 
 async function gsheetCall(action: string, params: Record<string, unknown> = {}): Promise<unknown> {
+  if (!API_URL) {
+    console.error("[bot] GSHEET_API_URL is not set — cannot call:", action);
+    throw new Error("GSHEET_API_URL tidak dikonfigurasi");
+  }
   const payload = JSON.stringify({ token: SECRET, action, ...params });
   const url     = `${API_URL}?payload=${encodeURIComponent(payload)}`;
-  const res     = await fetch(url, { cache: "no-store" });
-  return res.json();
+  // 25-second timeout so we don't hang a Vercel function indefinitely
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    return res.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -617,7 +628,7 @@ export async function handleMessage(chatId: number, text: string, firstName: str
   const sess = getSession(chatId);
 
   // ── Commands ───────────────────────────────────────────────────────────────
-  if (t === "/start" || t === "/menu") return handleStart(chatId, firstName);
+  if (t === "/start" || t === "/menu" || t === "/help") return handleStart(chatId, firstName);
   if (t === "/jadwal") {
     // shortcut
     return handleCallback(chatId, "", "jadwal", firstName);

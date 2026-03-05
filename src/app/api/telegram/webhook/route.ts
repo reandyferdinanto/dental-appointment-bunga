@@ -2,10 +2,17 @@
  * POST /api/telegram/webhook
  * Receives all updates from Telegram and dispatches to bot logic.
  * Register this URL as webhook via /api/telegram/setup
+ *
+ * IMPORTANT: We MUST await handlers before returning 200.
+ * On Vercel serverless, returning the response immediately terminates
+ * the function — any pending "void/fire-and-forget" async work is killed.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { handleMessage, handleCallback } from "@/lib/telegram/bot";
+
+// Allow up to 60s for slow Google Sheets API calls
+export const maxDuration = 60;
 
 // Telegram sends updates as JSON POST
 export async function POST(req: NextRequest) {
@@ -16,11 +23,11 @@ export async function POST(req: NextRequest) {
     if (update.message) {
       const msg       = update.message;
       const chatId    = msg.chat.id as number;
-      const text      = msg.text as string ?? "";
+      const text      = (msg.text as string) ?? "";
       const firstName = (msg.from?.first_name as string) ?? "";
 
-      // Fire and forget — Telegram expects 200 OK within 5s
-      void handleMessage(chatId, text, firstName);
+      // MUST await — Vercel kills async work when the response is returned
+      await handleMessage(chatId, text, firstName);
     }
 
     // ── Callback query (button taps) ──────────────────────────────────────────
@@ -28,10 +35,11 @@ export async function POST(req: NextRequest) {
       const cq        = update.callback_query;
       const chatId    = cq.message?.chat?.id as number;
       const queryId   = cq.id as string;
-      const data      = cq.data as string ?? "";
+      const data      = (cq.data as string) ?? "";
       const firstName = (cq.from?.first_name as string) ?? "";
 
-      void handleCallback(chatId, queryId, data, firstName);
+      // MUST await
+      await handleCallback(chatId, queryId, data, firstName);
     }
 
     return NextResponse.json({ ok: true });
