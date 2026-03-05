@@ -110,64 +110,244 @@ const competencyMap: Record<string, string> = {
   performed: "Mandiri",
 };
 
+// ── Excel color palette ───────────────────────────────────────────────────────
+const XL = {
+  navy:       "5D688A",
+  pink:       "F7A5A5",
+  peach:      "FFDBB6",
+  cream:      "FFF2EF",
+  white:      "FFFFFF",
+  darkText:   "2D3748",
+  mutedText:  "718096",
+  green:      "276749",
+  greenBg:    "C6F6D5",
+  blueBg:     "EBF4FF",
+  blueText:   "2B6CB0",
+  orangeBg:   "FEEBC8",
+  orangeText: "9C4221",
+  rowEven:    "F8F9FC",
+  rowOdd:     "FFFFFF",
+  border:     "CBD5E0",
+};
+
+function xlCell(
+  value: string | number,
+  opts: {
+    bold?: boolean; italic?: boolean; sz?: number;
+    color?: string; bg?: string;
+    halign?: "left"|"center"|"right"; valign?: "top"|"center"|"bottom";
+    wrap?: boolean; border?: boolean; borderColor?: string;
+    underline?: boolean;
+  } = {}
+) {
+  const t = typeof value === "number" ? "n" : "s";
+  const cell: Record<string, unknown> = { v: value, t };
+  cell.s = {
+    font: {
+      bold:      opts.bold      ?? false,
+      italic:    opts.italic    ?? false,
+      underline: opts.underline ?? false,
+      sz:        opts.sz        ?? 10,
+      color:     { rgb: opts.color ?? XL.darkText },
+      name:      "Calibri",
+    },
+    fill: opts.bg
+      ? { patternType: "solid", fgColor: { rgb: opts.bg } }
+      : { patternType: "none" },
+    alignment: {
+      horizontal: opts.halign ?? "left",
+      vertical:   opts.valign ?? "center",
+      wrapText:   opts.wrap   ?? false,
+    },
+    ...(opts.border ? {
+      border: {
+        top:    { style: "thin", color: { rgb: opts.borderColor ?? XL.border } },
+        bottom: { style: "thin", color: { rgb: opts.borderColor ?? XL.border } },
+        left:   { style: "thin", color: { rgb: opts.borderColor ?? XL.border } },
+        right:  { style: "thin", color: { rgb: opts.borderColor ?? XL.border } },
+      }
+    } : {}),
+  };
+  return cell;
+}
+
 async function exportExcel(entries: LogbookEntry[]) {
   const XLSX = await import("xlsx");
-  const rows = entries.map((e, i) => ({
-    "No":                i + 1,
-    "Tanggal":           fmtDate(e.date),
-    "Inisial Pasien":    e.patientInitials,
-    "Jenis Tindakan":    e.procedureType,
-    "No. Gigi":          e.toothNumber || "-",
-    "Diagnosis":         e.diagnosis,
-    "Treatment":         e.treatment,
-    "Pembimbing":        e.supervisorName,
-    "Tingkat Kompetensi": competencyMap[e.competencyLevel] || e.competencyLevel,
-    "Catatan":           e.notes || "-",
-  }));
 
-  const ws = XLSX.utils.json_to_sheet(rows);
+  const now       = new Date();
+  const stamp     = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}`;
+  const printDate = now.toLocaleDateString("id-ID", { day:"numeric", month:"long", year:"numeric" });
 
-  // Column widths
-  ws["!cols"] = [
-    { wch: 4 }, { wch: 20 }, { wch: 18 }, { wch: 28 },
-    { wch: 9 }, { wch: 30 }, { wch: 35 }, { wch: 28 },
-    { wch: 20 }, { wch: 30 },
+  const totalPerformed = entries.filter(e => e.competencyLevel === "performed").length;
+  const totalAssisted  = entries.filter(e => e.competencyLevel === "assisted").length;
+  const totalObserved  = entries.filter(e => e.competencyLevel === "observed").length;
+
+  // ── Competency styling map ──────────────────────────────────────────────────
+  const compStyle: Record<string, { bg: string; color: string; label: string }> = {
+    performed: { bg: XL.greenBg,  color: XL.green,       label: "✓ Mandiri"   },
+    assisted:  { bg: XL.blueBg,   color: XL.blueText,    label: "◎ Asistensi" },
+    observed:  { bg: XL.orangeBg, color: XL.orangeText,  label: "○ Observasi" },
+  };
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // SHEET 1 — COVER / RINGKASAN
+  // ════════════════════════════════════════════════════════════════════════════
+  const wsCover: Record<string, unknown> = {};
+
+  // Title block
+  wsCover["A1"] = xlCell("E-LOGBOOK KOAS KEDOKTERAN GIGI", { bold:true, sz:18, color:XL.white, bg:XL.navy, halign:"center" });
+  wsCover["A2"] = xlCell("drg. Natasya Bunga Maureen",     { bold:true, sz:13, color:XL.white, bg:XL.navy, halign:"center", italic:true });
+  wsCover["A3"] = xlCell("Stase Klinik Kedokteran Gigi",   { sz:11, color:XL.peach, bg:XL.navy, halign:"center" });
+  wsCover["A4"] = xlCell("",                                { bg:XL.navy });
+  wsCover["A5"] = xlCell(`Tanggal Cetak: ${printDate}`,    { sz:10, color:XL.mutedText, halign:"center", italic:true });
+  wsCover["A6"] = xlCell("", {});
+
+  // Stats header
+  wsCover["A7"] = xlCell("RINGKASAN CAPAIAN",  { bold:true, sz:12, color:XL.white, bg:XL.navy, halign:"center", border:true });
+  wsCover["A8"] = xlCell("",                   { bg:"EBF8FF" });
+
+  // Stat rows
+  const stats = [
+    ["📋  Total Catatan",      entries.length,    XL.navy,    "E8EDF5"],
+    ["✅  Tindakan Mandiri",   totalPerformed,    XL.green,   "F0FFF4"],
+    ["🔵  Asistensi",          totalAssisted,     XL.blueText,"EBF4FF"],
+    ["🟡  Observasi",          totalObserved,     XL.orangeText, "FFFBEB"],
+  ];
+  stats.forEach(([label, val, color, bg], i) => {
+    const r = 9 + i;
+    wsCover[`A${r}`] = xlCell(label as string, { sz:11, bold:true, color: color as string, bg: bg as string, border:true, borderColor:XL.border });
+    wsCover[`B${r}`] = xlCell(val as number,   { sz:14, bold:true, color: color as string, bg: bg as string, halign:"center", border:true, borderColor:XL.border, t:"n" } as Parameters<typeof xlCell>[1] & { t?: string });
+  });
+
+  wsCover["A13"] = xlCell("",{});
+  wsCover["A14"] = xlCell("DISTRIBUSI TINDAKAN TERBANYAK", { bold:true, sz:11, color:XL.white, bg:XL.navy, halign:"center", border:true });
+
+  // Procedure frequency
+  const procCount: Record<string, number> = {};
+  entries.forEach(e => { procCount[e.procedureType] = (procCount[e.procedureType] || 0) + 1; });
+  const topProcs = Object.entries(procCount).sort((a,b) => b[1]-a[1]).slice(0, 7);
+  topProcs.forEach(([proc, cnt], i) => {
+    const r = 15 + i;
+    const pct = Math.round((cnt / entries.length) * 100);
+    const bar = "█".repeat(Math.round(pct / 5)) + "░".repeat(20 - Math.round(pct / 5));
+    wsCover[`A${r}`] = xlCell(`${i+1}. ${proc}`, { sz:10, color:XL.darkText, bg: i%2===0 ? XL.rowEven : XL.rowOdd, border:true });
+    wsCover[`B${r}`] = xlCell(cnt,                { sz:10, bold:true, color:XL.navy, halign:"center", bg: i%2===0 ? XL.rowEven : XL.rowOdd, border:true });
+    wsCover[`C${r}`] = xlCell(`${bar} ${pct}%`,   { sz:9, color:XL.navy, bg: i%2===0 ? XL.rowEven : XL.rowOdd, border:true });
+  });
+
+  // Set ref & merges
+  const coverLastRow = 15 + topProcs.length;
+  wsCover["!ref"] = `A1:C${coverLastRow}`;
+  wsCover["!merges"] = [
+    { s:{r:0,c:0}, e:{r:0,c:2} }, // A1:C1 title
+    { s:{r:1,c:0}, e:{r:1,c:2} }, // A2:C2 name
+    { s:{r:2,c:0}, e:{r:2,c:2} }, // A3:C3 subtitle
+    { s:{r:3,c:0}, e:{r:3,c:2} }, // A4:C4 blank
+    { s:{r:4,c:0}, e:{r:4,c:2} }, // A5:C5 date
+    { s:{r:5,c:0}, e:{r:5,c:2} }, // A6
+    { s:{r:6,c:0}, e:{r:6,c:2} }, // A7 stats header
+    { s:{r:7,c:0}, e:{r:7,c:2} }, // A8
+    { s:{r:13,c:0}, e:{r:13,c:2} }, // A14 procedure header
+  ];
+  wsCover["!cols"] = [{ wch: 36 }, { wch: 12 }, { wch: 30 }];
+  wsCover["!rows"] = [
+    { hpt: 36 }, { hpt: 24 }, { hpt: 20 }, { hpt: 8 },
+    { hpt: 18 }, { hpt: 8 },
   ];
 
-  // Style header row (bold + background)
-  const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
-  for (let C = range.s.c; C <= range.e.c; C++) {
-    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
-    if (!cell) continue;
-    cell.s = {
-      font: { bold: true, color: { rgb: "FFFFFF" } },
-      fill: { fgColor: { rgb: "5D688A" } },
-      alignment: { horizontal: "center", wrapText: true },
-    };
-  }
+  // ════════════════════════════════════════════════════════════════════════════
+  // SHEET 2 — DATA LOGBOOK
+  // ════════════════════════════════════════════════════════════════════════════
+  const wsData: Record<string, unknown> = {};
 
+  // ── Sub-header title strip ──────────────────────────────────────────────────
+  wsData["A1"] = xlCell("E-LOGBOOK — drg. Natasya Bunga Maureen",
+    { bold:true, sz:13, color:XL.white, bg:XL.navy, halign:"center" });
+  wsData["A2"] = xlCell(`Total ${entries.length} catatan  ·  Dicetak: ${printDate}`,
+    { sz:9, color:XL.peach, bg:XL.navy, halign:"center", italic:true });
+
+  // ── Column headers (row 4) ──────────────────────────────────────────────────
+  const headers = [
+    "No","Tanggal","Inisial Pasien","Jenis Tindakan",
+    "No. Gigi","Diagnosis","Treatment","Pembimbing",
+    "Kompetensi","Catatan",
+  ];
+  const headerBg   = XL.navy;
+  const headerCols = ["A","B","C","D","E","F","G","H","I","J"];
+  headers.forEach((h, i) => {
+    wsData[`${headerCols[i]}4`] = xlCell(h, {
+      bold:true, sz:10, color:XL.white, bg:headerBg,
+      halign:"center", border:true, borderColor:"4A5568",
+    });
+  });
+
+  // ── Data rows (start row 5) ─────────────────────────────────────────────────
+  entries.forEach((e, i) => {
+    const r   = i + 5;
+    const isEven = i % 2 === 0;
+    const cs  = compStyle[e.competencyLevel] ?? { bg: XL.rowOdd, color: XL.darkText, label: e.competencyLevel };
+    const rowBg = isEven ? XL.rowEven : XL.rowOdd;
+
+    const base = { sz:9, wrap:true, border:true, borderColor:XL.border, valign:"top" as const };
+
+    wsData[`A${r}`] = xlCell(i+1,                               { ...base, halign:"center", bg:rowBg, bold:true, color:XL.navy });
+    wsData[`B${r}`] = xlCell(fmtDate(e.date),                   { ...base, bg:rowBg, color:XL.darkText });
+    wsData[`C${r}`] = xlCell(e.patientInitials,                  { ...base, halign:"center", bg:rowBg });
+    wsData[`D${r}`] = xlCell(e.procedureType,                    { ...base, bold:true, bg:rowBg, color:XL.navy });
+    wsData[`E${r}`] = xlCell(e.toothNumber || "-",               { ...base, halign:"center", bg:rowBg });
+    wsData[`F${r}`] = xlCell(e.diagnosis,                        { ...base, bg:rowBg, italic:true });
+    wsData[`G${r}`] = xlCell(e.treatment,                        { ...base, bg:rowBg });
+    wsData[`H${r}`] = xlCell(e.supervisorName,                   { ...base, bg:rowBg });
+    wsData[`I${r}`] = xlCell(cs.label,                           { ...base, halign:"center", bg:cs.bg, color:cs.color, bold:true });
+    wsData[`J${r}`] = xlCell(e.notes || "-",                     { ...base, bg:rowBg, color:XL.mutedText, italic:true });
+  });
+
+  // ── Footer row ──────────────────────────────────────────────────────────────
+  const footerRow = entries.length + 5;
+  const footerText = `Total: ${entries.length} catatan  |  Mandiri: ${totalPerformed}  |  Asistensi: ${totalAssisted}  |  Observasi: ${totalObserved}`;
+  wsData[`A${footerRow}`] = xlCell(footerText,
+    { bold:true, sz:9, color:XL.white, bg:XL.navy, halign:"center", border:true });
+
+  // ref, merges, cols, freeze
+  wsData["!ref"] = `A1:J${footerRow}`;
+  wsData["!merges"] = [
+    { s:{r:0,c:0}, e:{r:0,c:9} },  // A1:J1  title
+    { s:{r:1,c:0}, e:{r:1,c:9} },  // A2:J2  subtitle
+    { s:{r:2,c:0}, e:{r:2,c:9} },  // A3:J3  spacer
+    { s:{r:footerRow-1,c:0}, e:{r:footerRow-1,c:9} }, // footer
+  ];
+  wsData["!cols"] = [
+    { wch: 4 },   // No
+    { wch: 20 },  // Tanggal
+    { wch: 16 },  // Inisial Pasien
+    { wch: 30 },  // Jenis Tindakan
+    { wch: 9 },   // No. Gigi
+    { wch: 32 },  // Diagnosis
+    { wch: 36 },  // Treatment
+    { wch: 28 },  // Pembimbing
+    { wch: 16 },  // Kompetensi
+    { wch: 28 },  // Catatan
+  ];
+  wsData["!rows"] = [
+    { hpt: 30 },  // row 1 title
+    { hpt: 16 },  // row 2 subtitle
+    { hpt: 8  },  // row 3 spacer
+    { hpt: 22 },  // row 4 headers
+    ...entries.map(() => ({ hpt: 36 })),
+    { hpt: 20 },  // footer
+  ];
+  // Freeze header rows (row 1-4)
+  wsData["!freeze"] = { xSplit: 0, ySplit: 4 };
+
+  // ── Build workbook ──────────────────────────────────────────────────────────
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "E-Logbook");
+  XLSX.utils.book_append_sheet(wb, wsCover as unknown as ReturnType<typeof XLSX.utils.aoa_to_sheet>, "📊 Ringkasan");
+  XLSX.utils.book_append_sheet(wb, wsData  as unknown as ReturnType<typeof XLSX.utils.aoa_to_sheet>, "📋 E-Logbook");
 
-  // Add summary sheet
-  const summary = [
-    ["Laporan E-Logbook"],
-    ["drg. Natasya Bunga Maureen"],
-    [""],
-    ["Total Catatan",  entries.length],
-    ["Mandiri",        entries.filter(e => e.competencyLevel === "performed").length],
-    ["Asistensi",      entries.filter(e => e.competencyLevel === "assisted").length],
-    ["Observasi",      entries.filter(e => e.competencyLevel === "observed").length],
-    [""],
-    ["Dicetak pada", new Date().toLocaleDateString("id-ID", { day:"numeric", month:"long", year:"numeric" })],
-  ];
-  const wsSummary = XLSX.utils.aoa_to_sheet(summary);
-  wsSummary["!cols"] = [{ wch: 22 }, { wch: 20 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, "Ringkasan");
-
-  const now = new Date();
-  const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}`;
-  XLSX.writeFile(wb, `ELogbook_BungaMaureen_${stamp}.xlsx`);
+  XLSX.writeFile(wb, `ELogbook_BungaMaureen_${stamp}.xlsx`, {
+    bookType: "xlsx",
+    cellStyles: true,
+  });
 }
 
 function exportPDF(entries: LogbookEntry[]) {
