@@ -125,11 +125,27 @@ function findRowById(sheet, idCol, id) {
 
 var APT_HEADERS = ["ID","Nama Pasien","No. HP","Email","Koas ID","Tanggal","Jam","Keluhan","Status","Catatan Dokter","Dibuat Pada"];
 
+function normDateToISO(val) {
+  if (!val) return "";
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    var y = val.getFullYear(), mo = val.getMonth() + 1, dy = val.getDate();
+    return y + "-" + (mo < 10 ? "0" + mo : mo) + "-" + (dy < 10 ? "0" + dy : dy);
+  }
+  var s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  var parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    var py = parsed.getFullYear(), pm = parsed.getMonth() + 1, pd = parsed.getDate();
+    return py + "-" + (pm < 10 ? "0" + pm : pm) + "-" + (pd < 10 ? "0" + pd : pd);
+  }
+  return s;
+}
+
 function aptRowToObj(row) {
   return {
     id: String(row[0]), patientName: String(row[1]), patientPhone: String(row[2]),
     patientEmail: String(row[3] || ""), koasId: String(row[4]),
-    date: String(row[5]), time: String(row[6]), complaint: String(row[7]),
+    date: normDateToISO(row[5]), time: String(row[6]), complaint: String(row[7]),
     status: String(row[8]), notes: String(row[9] || ""), createdAt: String(row[10]),
   };
 }
@@ -193,7 +209,7 @@ var LOG_HEADERS = ["ID","Koas ID","Appointment ID","Tanggal","Inisial Pasien","J
 function logRowToObj(row) {
   return {
     id: String(row[0]), koasId: String(row[1]), appointmentId: String(row[2]||""),
-    date: String(row[3]), patientInitials: String(row[4]), procedureType: String(row[5]),
+    date: normDateToISO(row[3]), patientInitials: String(row[4]), procedureType: String(row[5]),
     toothNumber: String(row[6]||""), diagnosis: String(row[7]), treatment: String(row[8]),
     supervisorName: String(row[9]), competencyLevel: String(row[10]),
     notes: String(row[11]||""), createdAt: String(row[12]),

@@ -68,8 +68,40 @@ const monthNamesFull = [
 ];
 
 function fmtDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return `${d.getDate()} ${monthNamesFull[d.getMonth()]} ${d.getFullYear()}`;
+  if (!dateStr || dateStr === "undefined" || dateStr === "null") return "-";
+
+  let d: Date | null = null;
+
+  // 1. Already YYYY-MM-DD  →  parse as local to avoid UTC shift
+  const isoSimple = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (isoSimple) {
+    d = new Date(Number(isoSimple[1]), Number(isoSimple[2]) - 1, Number(isoSimple[3]));
+  }
+
+  // 2. Full ISO string  e.g. "2026-03-05T00:00:00.000Z"
+  if (!d || isNaN(d.getTime())) {
+    const isoFull = /^(\d{4})-(\d{2})-(\d{2})T/.exec(dateStr);
+    if (isoFull) {
+      d = new Date(Number(isoFull[1]), Number(isoFull[2]) - 1, Number(isoFull[3]));
+    }
+  }
+
+  // 3. Google Sheets epoch ISO  "1899-12-30T..."  — means it's a time-only cell, skip
+  // 4. Locale formats  "3/5/2026"  or  "05/03/2026"  or  "2026/03/05"
+  if (!d || isNaN(d.getTime())) {
+    // Try native Date parse as last resort
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) d = parsed;
+  }
+
+  if (!d || isNaN(d.getTime())) return dateStr; // return raw if still can't parse
+
+  const day   = d.getDate();
+  const month = monthNamesFull[d.getMonth()];
+  const year  = d.getFullYear();
+  // sanity-check: year should be reasonable
+  if (year < 1990 || year > 2100) return dateStr;
+  return `${day} ${month} ${year}`;
 }
 
 const competencyMap: Record<string, string> = {
@@ -584,7 +616,7 @@ export default function LogbookPage() {
             </div>
             <div className="space-y-3">
               {[
-                { label: "Tanggal",     value: (() => { const d = new Date(viewEntry.date); return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`; })() },
+                { label: "Tanggal",     value: fmtDate(viewEntry.date) },
                 { label: "Pasien",      value: viewEntry.patientInitials },
                 { label: "Tindakan",    value: viewEntry.procedureType },
                 { label: "Nomor Gigi",  value: viewEntry.toothNumber || "-" },
@@ -636,7 +668,15 @@ export default function LogbookPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((entry) => {
-            const d = new Date(entry.date);
+            // Robust date parsing — same logic as fmtDate
+            let d: Date;
+            const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(entry.date);
+            if (iso) {
+              d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+            } else {
+              d = new Date(entry.date);
+            }
+            const validDate = !isNaN(d.getTime()) && d.getFullYear() > 1990;
             const comp = competencyLabels[entry.competencyLevel];
             return (
               <div key={entry.id}
@@ -646,8 +686,12 @@ export default function LogbookPage() {
                   {/* Date */}
                   <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
                     style={{ background: "linear-gradient(135deg, rgba(255,219,182,0.3), rgba(247,165,165,0.2))", border: "1px solid rgba(255,219,182,0.4)" }}>
-                    <span className="text-[8px] sm:text-[9px] font-bold" style={{ color: "#F7A5A5" }}>{monthNames[d.getMonth()]}</span>
-                    <span className="text-base sm:text-lg font-extrabold text-[#3a3f52] -mt-0.5">{d.getDate()}</span>
+                    <span className="text-[8px] sm:text-[9px] font-bold" style={{ color: "#F7A5A5" }}>
+                      {validDate ? monthNames[d.getMonth()] : "—"}
+                    </span>
+                    <span className="text-base sm:text-lg font-extrabold text-[#3a3f52] -mt-0.5">
+                      {validDate ? d.getDate() : "?"}
+                    </span>
                   </div>
                   {/* Info */}
                   <div className="flex-1 min-w-0">
