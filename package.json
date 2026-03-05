@@ -10,8 +10,10 @@
     "setup:redis": "node scripts/setup-redis.mjs"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@upstash/redis": "^1.36.3",
     "@vercel/edge-config": "^1.4.3",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

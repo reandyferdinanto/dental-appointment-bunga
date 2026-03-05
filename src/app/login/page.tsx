@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Lock, Mail, Loader2, ArrowLeft } from "lucide-react";
+import { Lock, Mail, Loader2, ArrowLeft, Clock } from "lucide-react";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError]     = useState("");
   const [loading, setLoading] = useState(false);
+  const sessionExpired = searchParams.get("reason") === "session_expired";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,6 +89,14 @@ export default function LoginPage() {
               Masuk ke dashboard drg. Bunga Maureen
             </p>
           </div>
+
+          {sessionExpired && (
+            <div className="rounded-2xl p-3 mb-4 text-sm text-center font-medium flex items-center gap-2"
+              style={{ background: "rgba(255,219,182,0.3)", border: "1px solid rgba(255,219,182,0.6)", color: "#5D688A" }}>
+              <Clock className="w-4 h-4 shrink-0" />
+              Sesi Anda telah berakhir (6 jam). Silakan login kembali.
+            </div>
+          )}
 
           {error && (
             <div

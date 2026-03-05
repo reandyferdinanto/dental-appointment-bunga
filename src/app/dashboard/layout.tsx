@@ -1,19 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import {
-  LayoutDashboard,
-  Calendar,
-  CalendarClock,
-  BookOpen,
-  LogOut,
-  Menu,
-  X,
-  ChevronRight,
-  Settings,
+  LayoutDashboard, Calendar, CalendarClock, BookOpen,
+  LogOut, Menu, X, ChevronRight, Settings, Clock,
 } from "lucide-react";
 
 const sidebarLinks = [
@@ -31,8 +24,39 @@ const ToothLogo = () => (
 );
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname  = usePathname();
+  const router    = useRouter();
+  const { data: session } = useSession();
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [expiryWarning, setExpiryWarning] = useState<number | null>(null); // minutes left
+
+  // ── 6-hour session expiry monitor ─────────────────────────────────────────
+  useEffect(() => {
+    const loginTime = (session?.user as { loginTime?: number } | undefined)?.loginTime;
+    if (!loginTime) return;
+
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    const WARN_AT   = 15 * 60 * 1000; // warn 15 min before expiry
+
+    const tick = () => {
+      const elapsed = Date.now() - loginTime;
+      const remaining = SIX_HOURS - elapsed;
+
+      if (remaining <= 0) {
+        signOut({ callbackUrl: "/login?reason=session_expired" });
+        return;
+      }
+      if (remaining <= WARN_AT) {
+        setExpiryWarning(Math.ceil(remaining / 60000));
+      } else {
+        setExpiryWarning(null);
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 30_000); // check every 30 s
+    return () => clearInterval(id);
+  }, [session, router]);
 
   const NavLink = ({ link, onClick }: { link: typeof sidebarLinks[0]; onClick?: () => void }) => {
     const isActive = pathname === link.href;
@@ -142,6 +166,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main content */}
         <main className="flex-1 lg:ml-64 min-h-screen">
+          {/* Session expiry warning */}
+          {expiryWarning !== null && (
+            <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold"
+              style={{ background: "linear-gradient(135deg,#FFDBB6,#F7A5A5)", color: "#5D688A" }}>
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              Sesi Anda akan berakhir dalam <strong>{expiryWarning} menit</strong>. Simpan pekerjaan Anda.
+              <button onClick={() => signOut({ callbackUrl: "/login" })}
+                className="ml-auto px-3 py-1 rounded-lg font-bold text-xs hover:opacity-80 transition-opacity"
+                style={{ background: "rgba(93,104,138,0.2)" }}>
+                Login Ulang
+              </button>
+            </div>
+          )}
           {/* Add bottom padding on mobile for bottom nav */}
           <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">{children}</div>
         </main>
