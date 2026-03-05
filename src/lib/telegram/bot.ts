@@ -755,10 +755,11 @@ export async function handleMessage(chatId: number, text: string, firstName: str
       );
     }
 
-    // Generic fallback
+    // Generic fallback — warm welcome for potential patients
+    const name = firstName ? ` <b>${firstName}</b>` : "";
     return sendMessage(
       chatId,
-      `Halo! 😊 Saya belum mengerti maksud pesanmu.\n\nBerikut yang bisa saya bantu:`,
+      `Halo${name}! 🌸 Selamat datang di klinik drg. <b>Natasya Bunga Maureen</b> 🦷\n\nSenang sekali kamu sudah menghubungi kami! 😊\n\nKami hadir untuk membantu menjaga kesehatan dan kecantikan senyummu dengan pelayanan yang <b>ramah, nyaman, dan profesional</b>.\n\nJangan ragu ya — tidak ada pertanyaan yang terlalu sepele soal kesehatan gigi! 💬\n\nBerikut yang bisa aku bantu untuk kamu:`,
       { reply_markup: MAIN_MENU, parse_mode: "HTML" }
     );
   }
