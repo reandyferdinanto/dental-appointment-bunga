@@ -61,7 +61,10 @@ export default async function HomePage() {
     : defaultServices;
 
   const announcement = (settings?.announcement as string | undefined) || "";
-  const doctorName   = (settings?.doctorName   as string | undefined) || "Natasya Bunga Maureen";
+  // Strip any leading "drg." / "drg" prefix the admin may have typed in settings
+  // so the hero card (which hardcodes "drg. ") never shows it twice.
+  const rawDoctorName = (settings?.doctorName as string | undefined) || "Natasya Bunga Maureen";
+  const doctorName    = rawDoctorName.replace(/^drg\.?\s*/i, "").trim() || "Natasya Bunga Maureen";
 
   return (
     <div className="min-h-screen bg-mesh overflow-x-hidden">
@@ -99,7 +102,7 @@ export default async function HomePage() {
 
             <p className="text-base sm:text-lg text-[#5D688A]/75 leading-relaxed max-w-lg mb-6 sm:mb-8">
               Halo! Saya{" "}
-              <span className="font-bold text-[#5D688A]">{doctorName}</span>
+              <span className="font-bold text-[#5D688A]">drg. {doctorName}</span>
               , dokter gigi koas yang siap membantu menjaga kesehatan gigi dan mulut Anda dengan
               pelayanan profesional dan penuh empati 💖
             </p>

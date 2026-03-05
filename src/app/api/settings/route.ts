@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 function getDefaultSettings() {
   return {
     clinicName: "Klinik Gigi drg. Natasya Bunga Maureen",
-    doctorName: "drg. Natasya Bunga Maureen",
+    doctorName: "Natasya Bunga Maureen",
     phone: "08xxxxxxxxxx",
     whatsapp: "08xxxxxxxxxx",
     email: "bunga@dentist.com",

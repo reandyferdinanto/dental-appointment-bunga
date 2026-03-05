@@ -286,9 +286,10 @@ export default function SettingsPage() {
             <input className={inputCls} style={inputStyle} value={settings.clinicName}
               onChange={e => set("clinicName", e.target.value)} onFocus={focusStyle} onBlur={blurStyle} />
           </Field>
-          <Field label="Nama Dokter">
+          <Field label='Nama Dokter (tanpa "drg.")'>
             <input className={inputCls} style={inputStyle} value={settings.doctorName}
-              onChange={e => set("doctorName", e.target.value)} onFocus={focusStyle} onBlur={blurStyle} />
+              onChange={e => set("doctorName", e.target.value)} onFocus={focusStyle} onBlur={blurStyle}
+              placeholder="Natasya Bunga Maureen" />
           </Field>
           <Field label="Alamat Praktek">
             <input className={inputCls} style={inputStyle} value={settings.address}
