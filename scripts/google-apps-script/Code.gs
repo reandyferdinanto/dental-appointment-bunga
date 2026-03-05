@@ -227,16 +227,32 @@ function logDelete(ss, id) {
 
 var SCH_HEADERS = ["Koas ID","Tanggal","Slot Tersedia (JSON)","Diperbarui Pada"];
 
+function cellToDateStr(val) {
+  // Google Sheets may store date cells as Date objects, not strings.
+  // Convert to YYYY-MM-DD regardless of the stored type.
+  if (!val) return "";
+  if (val instanceof Date) {
+    return fmtDate(val);
+  }
+  var s = String(val).trim();
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Try parsing other formats
+  var d = new Date(s);
+  if (!isNaN(d.getTime())) return fmtDate(d);
+  return s;
+}
+
 function schRowToObj(row) {
   var slots = [];
   try { slots = JSON.parse(String(row[2])); } catch(e) { slots = []; }
-  return { date: String(row[1]), slots: Array.isArray(slots) ? slots.sort() : [] };
+  return { date: cellToDateStr(row[1]), slots: Array.isArray(slots) ? slots.sort() : [] };
 }
 
 function schFindRow(sheet, koasId, date) {
   var rows = sheetData(sheet);
   for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i][0]) === koasId && String(rows[i][1]) === date) return { row: i + 2, data: rows[i] };
+    if (String(rows[i][0]) === koasId && cellToDateStr(rows[i][1]) === date) return { row: i + 2, data: rows[i] };
   }
   return null;
 }
@@ -250,6 +266,10 @@ function schSet(ss, koasId, date, slots) {
     sheet.getRange(found.row, 4).setValue(nowISO());
   } else {
     sheet.appendRow([koasId, date, slotsJson, nowISO()]);
+    // Force date cell to plain text to prevent auto Date conversion
+    var lastRow = sheet.getLastRow();
+    sheet.getRange(lastRow, 2).setNumberFormat("@");
+    sheet.getRange(lastRow, 2).setValue(date);
   }
   return { success: true, date: date, slots: slots };
 }
