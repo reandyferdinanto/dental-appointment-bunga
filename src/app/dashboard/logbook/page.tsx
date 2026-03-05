@@ -68,7 +68,7 @@ const monthNamesFull = [
 ];
 
 function fmtDate(dateStr: string) {
-  if (!dateStr || dateStr === "undefined" || dateStr === "null") return "-";
+  if (!dateStr || dateStr === "undefined" || dateStr === "null" || dateStr.trim() === "") return "-";
 
   let d: Date | null = null;
 
@@ -87,6 +87,8 @@ function fmtDate(dateStr: string) {
   }
 
   // 3. Google Sheets epoch ISO  "1899-12-30T..."  — means it's a time-only cell, skip
+  if (d && d.getFullYear() <= 1900) return "-";
+
   // 4. Locale formats  "3/5/2026"  or  "05/03/2026"  or  "2026/03/05"
   if (!d || isNaN(d.getTime())) {
     // Try native Date parse as last resort
@@ -94,13 +96,14 @@ function fmtDate(dateStr: string) {
     if (!isNaN(parsed.getTime())) d = parsed;
   }
 
-  if (!d || isNaN(d.getTime())) return dateStr; // return raw if still can't parse
+  if (!d || isNaN(d.getTime())) return "-"; // return "-" if still can't parse
+
+  // Guard against 1899 epoch dates (Google Sheets time-only cells)
+  if (d.getFullYear() <= 1900 || d.getFullYear() > 2100) return "-";
 
   const day   = d.getDate();
   const month = monthNamesFull[d.getMonth()];
   const year  = d.getFullYear();
-  // sanity-check: year should be reasonable
-  if (year < 1990 || year > 2100) return dateStr;
   return `${day} ${month} ${year}`;
 }
 

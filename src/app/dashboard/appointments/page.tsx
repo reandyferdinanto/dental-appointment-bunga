@@ -74,15 +74,21 @@ function parseDateStr(raw: string): Date | null {
 /** Safely format a time string — strips any 1899 Date object garbage */
 function fmtTime(raw: string): string {
   if (!raw) return "-";
-  // Already HH:mm
-  if (/^\d{1,2}:\d{2}$/.test(raw.trim())) return raw.trim();
-  // Date object that came through as string like "Sat Dec 30 1899 09:00:00..."
-  const d = new Date(raw);
+  const s = raw.trim();
+  // Already HH:mm or H:mm
+  if (/^\d{1,2}:\d{2}$/.test(s)) return s;
+  // Extract HH:mm from any date-like string (e.g. "Sat Dec 30 1899 09:00:00 GMT+0707...")
+  const hmMatch = /\b(\d{1,2}):(\d{2})(?::\d{2})?\b/.exec(s);
+  if (hmMatch) {
+    return `${String(hmMatch[1]).padStart(2,"0")}:${hmMatch[2]}`;
+  }
+  // Try native Date parse as last resort
+  const d = new Date(s);
   if (!isNaN(d.getTime())) {
     const h = d.getHours(), mn = d.getMinutes();
     return `${String(h).padStart(2,"0")}:${String(mn).padStart(2,"0")}`;
   }
-  return raw;
+  return s;
 }
 
 /** Format a date for full display: "Kamis, 5 Maret 2026" */
@@ -241,7 +247,9 @@ export default function AppointmentsPage() {
                         <Clock className="w-3 h-3 text-[#F7A5A5]" />
                         {validDate
                           ? `${fmtDateFull(apt.date)} · ${fmtTime(apt.time)}`
-                          : fmtTime(apt.time)}
+                          : fmtTime(apt.time) !== "-"
+                            ? `— · ${fmtTime(apt.time)}`
+                            : "Jadwal belum diatur"}
                       </span>
                       <span className="flex items-center gap-1 text-xs text-[#5D688A]/60">
                         <Phone className="w-3 h-3 text-[#FFDBB6]" />

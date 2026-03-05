@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "setup:redis": "node scripts/setup-redis.mjs"
+    "setup:redis": "node scripts/setup-redis.mjs",
+    "telegram": "node scripts/telegram-poll.mjs",
+    "telegram:bot": "node scripts/telegram-standalone.mjs"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
