@@ -51,6 +51,48 @@ const monthNames = [
   "Jul","Agu","Sep","Okt","Nov","Des",
 ];
 
+const monthNamesFull = [
+  "Januari","Februari","Maret","April","Mei","Juni",
+  "Juli","Agustus","September","Oktober","November","Desember",
+];
+
+/** Safely parse any date string to a local Date. Returns null if invalid. */
+function parseDateStr(raw: string): Date | null {
+  if (!raw || raw === "undefined" || raw === "null") return null;
+  // 1. YYYY-MM-DD  → parse as local (no UTC shift)
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (m) {
+    const d = new Date(+m[1], +m[2] - 1, +m[3]);
+    if (!isNaN(d.getTime()) && d.getFullYear() >= 1990) return d;
+  }
+  // 2. Native parse (ISO full strings, locale strings)
+  const d2 = new Date(raw);
+  if (!isNaN(d2.getTime()) && d2.getFullYear() >= 1990) return d2;
+  return null;
+}
+
+/** Safely format a time string — strips any 1899 Date object garbage */
+function fmtTime(raw: string): string {
+  if (!raw) return "-";
+  // Already HH:mm
+  if (/^\d{1,2}:\d{2}$/.test(raw.trim())) return raw.trim();
+  // Date object that came through as string like "Sat Dec 30 1899 09:00:00..."
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) {
+    const h = d.getHours(), mn = d.getMinutes();
+    return `${String(h).padStart(2,"0")}:${String(mn).padStart(2,"0")}`;
+  }
+  return raw;
+}
+
+/** Format a date for full display: "Kamis, 5 Maret 2026" */
+function fmtDateFull(raw: string): string {
+  const d = parseDateStr(raw);
+  if (!d) return raw || "-";
+  const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+  return `${days[d.getDay()]}, ${d.getDate()} ${monthNamesFull[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +208,8 @@ export default function AppointmentsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((apt) => {
-            const d = new Date(apt.date);
+            const d = parseDateStr(apt.date);
+            const validDate = d !== null;
             return (
               <div key={apt.id}
                 className="glass rounded-2xl p-4 sm:p-5 transition-all duration-200 tap-feedback"
@@ -176,8 +219,12 @@ export default function AppointmentsPage() {
                   {/* Date badge */}
                   <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
                     style={{ background: "linear-gradient(135deg, rgba(247,165,165,0.2), rgba(255,219,182,0.3))", border: "1px solid rgba(247,165,165,0.3)" }}>
-                    <span className="text-[8px] sm:text-[9px] font-bold" style={{ color: "#F7A5A5" }}>{monthNames[d.getMonth()]}</span>
-                    <span className="text-base sm:text-lg font-extrabold text-[#3a3f52] -mt-0.5">{d.getDate()}</span>
+                    <span className="text-[8px] sm:text-[9px] font-bold" style={{ color: "#F7A5A5" }}>
+                      {validDate ? monthNames[d!.getMonth()] : "—"}
+                    </span>
+                    <span className="text-base sm:text-lg font-extrabold text-[#3a3f52] -mt-0.5">
+                      {validDate ? d!.getDate() : "?"}
+                    </span>
                   </div>
                   {/* Name & meta */}
                   <div className="flex-1 min-w-0">
@@ -191,7 +238,10 @@ export default function AppointmentsPage() {
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 mt-1 flex-wrap">
                       <span className="flex items-center gap-1 text-xs text-[#5D688A]/60">
-                        <Clock className="w-3 h-3 text-[#F7A5A5]" /> {apt.time}
+                        <Clock className="w-3 h-3 text-[#F7A5A5]" />
+                        {validDate
+                          ? `${fmtDateFull(apt.date)} · ${fmtTime(apt.time)}`
+                          : fmtTime(apt.time)}
                       </span>
                       <span className="flex items-center gap-1 text-xs text-[#5D688A]/60">
                         <Phone className="w-3 h-3 text-[#FFDBB6]" />

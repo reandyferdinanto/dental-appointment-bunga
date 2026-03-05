@@ -129,14 +129,36 @@ function normDateToISO(val) {
   if (!val) return "";
   if (val instanceof Date && !isNaN(val.getTime())) {
     var y = val.getFullYear(), mo = val.getMonth() + 1, dy = val.getDate();
+    // Guard: year 1899 means it's a time-only cell, not a date
+    if (y < 1990) return "";
     return y + "-" + (mo < 10 ? "0" + mo : mo) + "-" + (dy < 10 ? "0" + dy : dy);
   }
   var s = String(val).trim();
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   var parsed = new Date(s);
-  if (!isNaN(parsed.getTime())) {
+  if (!isNaN(parsed.getTime()) && parsed.getFullYear() >= 1990) {
     var py = parsed.getFullYear(), pm = parsed.getMonth() + 1, pd = parsed.getDate();
     return py + "-" + (pm < 10 ? "0" + pm : pm) + "-" + (pd < 10 ? "0" + pd : pd);
+  }
+  return s;
+}
+
+// Normalise a time value from Sheets to "HH:mm" string.
+// Sheets stores time cells as Date objects with the date portion = 1899-12-30.
+function normTimeToHHMM(val) {
+  if (!val) return "";
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    var h = val.getHours(), m = val.getMinutes();
+    return (h < 10 ? "0" + h : String(h)) + ":" + (m < 10 ? "0" + m : String(m));
+  }
+  var s = String(val).trim();
+  // Already "HH:mm" or "H:mm"
+  if (/^\d{1,2}:\d{2}$/.test(s)) return s;
+  // Full datetime string like "Sat Dec 30 1899 09:00:00 ..."
+  var parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    var ph = parsed.getHours(), pm2 = parsed.getMinutes();
+    return (ph < 10 ? "0" + ph : String(ph)) + ":" + (pm2 < 10 ? "0" + pm2 : String(pm2));
   }
   return s;
 }
@@ -145,7 +167,9 @@ function aptRowToObj(row) {
   return {
     id: String(row[0]), patientName: String(row[1]), patientPhone: String(row[2]),
     patientEmail: String(row[3] || ""), koasId: String(row[4]),
-    date: normDateToISO(row[5]), time: String(row[6]), complaint: String(row[7]),
+    date: normDateToISO(row[5]),
+    time: normTimeToHHMM(row[6]),
+    complaint: String(row[7]),
     status: String(row[8]), notes: String(row[9] || ""), createdAt: String(row[10]),
   };
 }
