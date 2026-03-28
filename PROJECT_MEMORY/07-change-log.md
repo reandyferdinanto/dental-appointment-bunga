@@ -170,3 +170,9 @@
 - Memory files updated:
   - `04-ui-components.md`
   - `07-change-log.md`
+
+- Area: hero tooth final premium pass and local cleanup
+- Change: refined the homepage tooth CTA shadow geometry to feel closer to the shared neumorphic button surfaces and removed local debug artifacts that were intentionally kept out of version control.
+- Memory files updated:
+  - `04-ui-components.md`
+  - `07-change-log.md`

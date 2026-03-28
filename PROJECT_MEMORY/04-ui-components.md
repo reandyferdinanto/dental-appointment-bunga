@@ -324,3 +324,8 @@ Primary dashboard nav destinations:
 - dashboard shell, settings, schedules, rekam medis, and logbook now use the same #FDACAC-family accent system instead of leftover green, peach, and teal emphasis states
 - homepage hero tooth CTA now uses tighter raised and inset shadow geometry so the embossed tooth reads closer to the shared neumorphism components rather than a separate decorative SVG effect
 - the tooth CTA keeps the tooth.svg silhouette while using calmer highlight and shadow contrast that better matches Themesberg-style local neumorphism
+### Hero Tooth Final Premium Pass
+
+- homepage tooth CTA now uses a tighter raised shadow and shallower inset highlight, closer to the shared secondary button neumorphism depth
+- a thin white edge and softer sheen overlay keep the tooth surface readable without making it look like a separate decorative illustration style
+- the hero tooth now reads more like a premium raised neumorphism component with the same surface language as the rest of the UI
