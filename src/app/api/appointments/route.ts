@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const data = await listAppointments();
     return NextResponse.json(data ?? [], {
-      headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
     console.error(error);

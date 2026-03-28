@@ -98,6 +98,7 @@ export default function SchedulesPage() {
   const [schedules, setSchedules] = useState<Schedule[]>(() => buildWeekMap(getMonday(new Date()), []));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState("");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingSlots, setEditingSlots] = useState<string[]>([]);
   const [clinicSettings, setClinicSettings] = useState<ClinicSettings>(DEFAULT_SETTINGS);
@@ -166,19 +167,25 @@ export default function SchedulesPage() {
 
   async function saveSchedule() {
     if (!selectedDate) return;
+    setSaveError("");
     setSaving(selectedDate);
     const newSlots = [...editingSlots].sort();
     setSchedules((prev) => prev.map((s) => (s.date === selectedDate ? { ...s, slots: newSlots } : s)));
     setSelectedDate(null);
 
     try {
-      await fetch("/api/schedules", {
+      const res = await fetch("/api/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date: selectedDate, slots: newSlots }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Gagal menyimpan jadwal");
+      }
     } catch (err) {
       console.error(err);
+      setSaveError(err instanceof Error ? err.message : "Gagal menyimpan jadwal");
       void fetchSchedules(weekStart);
     }
 
@@ -186,17 +193,23 @@ export default function SchedulesPage() {
   }
 
   async function clearSchedule(date: string) {
+    setSaveError("");
     setSaving(date);
     setSchedules((prev) => prev.map((s) => (s.date === date ? { ...s, slots: [] } : s)));
 
     try {
-      await fetch("/api/schedules", {
+      const res = await fetch("/api/schedules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ date, slots: [] }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Gagal menghapus jadwal");
+      }
     } catch (err) {
       console.error(err);
+      setSaveError(err instanceof Error ? err.message : "Gagal menghapus jadwal");
       void fetchSchedules(weekStart);
     }
 
@@ -260,6 +273,12 @@ export default function SchedulesPage() {
           <ChevronRight className="h-5 w-5" />
         </NeuButton>
       </NeuCard>
+
+      {saveError && (
+        <NeuCard className="mb-5 rounded-2xl border border-[#FDACAC]/40 px-4 py-3 text-sm font-semibold text-[#bb6868]">
+          {saveError}
+        </NeuCard>
+      )}
 
       {selectedDate && (
         <div
