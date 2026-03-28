@@ -13,17 +13,16 @@ export default function TeethLoader({ message = "Tunggu yaa, kami cek terlebih d
         {/* Glow ring */}
         <div className="absolute inset-0 rounded-full animate-ping"
           style={{
-            background: "radial-gradient(circle, rgba(247,165,165,0.25) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(253,172,172,0.22) 0%, transparent 70%)",
             animationDuration: "2s",
           }} />
 
         {/* Main SVG card */}
         <div className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-full flex items-center justify-center"
           style={{
-            background: "rgba(255,255,255,0.55)",
-            backdropFilter: "blur(16px)",
-            border: "1.5px solid rgba(247,165,165,0.35)",
-            boxShadow: "0 8px 32px rgba(247,165,165,0.2), 0 2px 8px rgba(93,104,138,0.1)",
+            background: "#e6e7ee",
+            border: "1px solid rgba(255,255,255,0.52)",
+            boxShadow: "8px 8px 16px rgba(163,177,198,0.22), -8px -8px 16px rgba(255,255,255,0.56)",
             animation: "teethBounce 1.6s ease-in-out infinite",
           }}>
 
@@ -31,62 +30,62 @@ export default function TeethLoader({ message = "Tunggu yaa, kami cek terlebih d
 
             {/* ── Top teeth row ── */}
             {/* Gum base top */}
-            <rect x="10" y="18" width="140" height="18" rx="9" fill="#F7A5A5" opacity="0.85" />
+            <rect x="10" y="18" width="140" height="18" rx="9" fill="#FDACAC" opacity="0.82" />
 
             {/* Top tooth 1 */}
-            <rect x="14" y="28" width="22" height="30" rx="5" fill="white" stroke="#F7A5A5" strokeWidth="1.5" />
+            <rect x="14" y="28" width="22" height="30" rx="5" fill="white" stroke="#FDACAC" strokeWidth="1.5" />
             <rect x="17" y="30" width="6" height="12" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* Top tooth 2 */}
-            <rect x="39" y="26" width="24" height="34" rx="5" fill="white" stroke="#FFDBB6" strokeWidth="1.5" />
+            <rect x="39" y="26" width="24" height="34" rx="5" fill="white" stroke="#FEC3C3" strokeWidth="1.5" />
             <rect x="42" y="28" width="6" height="13" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* Top tooth 3 (center big) */}
-            <rect x="66" y="24" width="28" height="38" rx="6" fill="white" stroke="#F7A5A5" strokeWidth="1.5" />
+            <rect x="66" y="24" width="28" height="38" rx="6" fill="white" stroke="#FDACAC" strokeWidth="1.5" />
             <rect x="70" y="26" width="7" height="15" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* Top tooth 4 */}
-            <rect x="97" y="26" width="24" height="34" rx="5" fill="white" stroke="#FFDBB6" strokeWidth="1.5" />
+            <rect x="97" y="26" width="24" height="34" rx="5" fill="white" stroke="#FEC3C3" strokeWidth="1.5" />
             <rect x="100" y="28" width="6" height="13" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* Top tooth 5 */}
-            <rect x="124" y="28" width="22" height="30" rx="5" fill="white" stroke="#F7A5A5" strokeWidth="1.5" />
+            <rect x="124" y="28" width="22" height="30" rx="5" fill="white" stroke="#FDACAC" strokeWidth="1.5" />
             <rect x="127" y="30" width="6" height="12" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* ── Gap line ── */}
-            <line x1="10" y1="70" x2="150" y2="70" stroke="rgba(247,165,165,0.3)" strokeWidth="1" strokeDasharray="4 3" />
+            <line x1="10" y1="70" x2="150" y2="70" stroke="rgba(253,172,172,0.28)" strokeWidth="1" strokeDasharray="4 3" />
 
             {/* ── Bottom teeth row ── */}
             {/* Gum base bottom */}
-            <rect x="10" y="94" width="140" height="18" rx="9" fill="#FFDBB6" opacity="0.85" />
+            <rect x="10" y="94" width="140" height="18" rx="9" fill="#FEC3C3" opacity="0.82" />
 
             {/* Bottom tooth 1 */}
-            <rect x="16" y="72" width="20" height="26" rx="5" fill="white" stroke="#FFDBB6" strokeWidth="1.5" />
+            <rect x="16" y="72" width="20" height="26" rx="5" fill="white" stroke="#FEC3C3" strokeWidth="1.5" />
             <rect x="19" y="74" width="5" height="10" rx="2.5" fill="rgba(93,104,138,0.07)" />
 
             {/* Bottom tooth 2 */}
-            <rect x="40" y="70" width="22" height="28" rx="5" fill="white" stroke="#F7A5A5" strokeWidth="1.5" />
+            <rect x="40" y="70" width="22" height="28" rx="5" fill="white" stroke="#FDACAC" strokeWidth="1.5" />
             <rect x="43" y="72" width="6" height="11" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* Bottom tooth 3 (center) */}
-            <rect x="66" y="68" width="28" height="32" rx="6" fill="white" stroke="#FFDBB6" strokeWidth="1.5" />
+            <rect x="66" y="68" width="28" height="32" rx="6" fill="white" stroke="#FEC3C3" strokeWidth="1.5" />
             <rect x="70" y="70" width="7" height="13" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* Bottom tooth 4 */}
-            <rect x="98" y="70" width="22" height="28" rx="5" fill="white" stroke="#F7A5A5" strokeWidth="1.5" />
+            <rect x="98" y="70" width="22" height="28" rx="5" fill="white" stroke="#FDACAC" strokeWidth="1.5" />
             <rect x="101" y="72" width="6" height="11" rx="3" fill="rgba(93,104,138,0.07)" />
 
             {/* Bottom tooth 5 */}
-            <rect x="124" y="72" width="20" height="26" rx="5" fill="white" stroke="#FFDBB6" strokeWidth="1.5" />
+            <rect x="124" y="72" width="20" height="26" rx="5" fill="white" stroke="#FEC3C3" strokeWidth="1.5" />
             <rect x="127" y="74" width="5" height="10" rx="2.5" fill="rgba(93,104,138,0.07)" />
 
             {/* ── Sparkle accents ── */}
             <g style={{ animation: "sparkle1 2s ease-in-out infinite" }}>
-              <circle cx="148" cy="14" r="3" fill="#F7A5A5" opacity="0.7" />
+              <circle cx="148" cy="14" r="3" fill="#FDACAC" opacity="0.68" />
               <circle cx="148" cy="14" r="1.5" fill="white" />
             </g>
             <g style={{ animation: "sparkle2 2.4s ease-in-out infinite" }}>
-              <circle cx="12" cy="12" r="2.5" fill="#FFDBB6" opacity="0.8" />
+              <circle cx="12" cy="12" r="2.5" fill="#FEC3C3" opacity="0.78" />
               <circle cx="12" cy="12" r="1" fill="white" />
             </g>
             <g style={{ animation: "sparkle1 1.8s ease-in-out infinite 0.5s" }}>
@@ -132,7 +131,7 @@ export default function TeethLoader({ message = "Tunggu yaa, kami cek terlebih d
           {[0, 1, 2].map((i) => (
             <div key={i} className="w-2 h-2 rounded-full"
               style={{
-                background: "linear-gradient(135deg, #F7A5A5, #5D688A)",
+                background: "#4e6785",
                 animation: `dotBounce 1.2s ease-in-out infinite`,
                 animationDelay: `${i * 0.2}s`,
               }} />

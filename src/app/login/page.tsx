@@ -5,6 +5,13 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Lock, Mail, Loader2, ArrowLeft, Clock } from "lucide-react";
+import {
+  NeuAlert,
+  NeuButton,
+  NeuCard,
+  NeuIconTile,
+  NeuInput,
+} from "@/components/ui/neumorphism";
 
 export default function LoginPage() {
   const router       = useRouter();
@@ -54,25 +61,11 @@ export default function LoginPage() {
           <ArrowLeft className="w-4 h-4" /> Kembali ke Beranda
         </Link>
 
-        <div
-          className="glass rounded-3xl p-8"
-          style={{
-            border: "1px solid rgba(255,255,255,0.75)",
-            boxShadow: "0 20px 60px rgba(93,104,138,0.15)",
-          }}
-        >
+        <NeuCard className="rounded-3xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
             <div className="relative w-16 h-16 mx-auto mb-4">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#F7A5A5] to-[#FFDBB6] opacity-60 blur-md" />
-              <div
-                className="relative w-16 h-16 rounded-2xl flex items-center justify-center"
-                style={{
-                  background:
-                    "linear-gradient(135deg, #5D688A 0%, #7a88b0 100%)",
-                  boxShadow: "0 8px 25px rgba(93,104,138,0.35)",
-                }}
-              >
+              <NeuIconTile tone="primary" className="relative h-16 w-16 rounded-2xl">
                 <svg
                   viewBox="0 0 24 24"
                   className="w-7 h-7 fill-white"
@@ -80,7 +73,7 @@ export default function LoginPage() {
                 >
                   <path d="M12 2C9.5 2 7.5 3.5 6.5 5.5C5.5 3.5 3.5 2 1.5 2C1.5 2 1 6 2 8.5C3 11 4 12 4 15C4 18 5 22 7 22C8.5 22 9 20 10 18C10.5 16.5 11 15 12 15C13 15 13.5 16.5 14 18C15 20 15.5 22 17 22C19 22 20 18 20 15C20 12 21 11 22 8.5C23 6 22.5 2 22.5 2C20.5 2 18.5 3.5 17.5 5.5C16.5 3.5 14.5 2 12 2Z" />
                 </svg>
-              </div>
+              </NeuIconTile>
             </div>
             <h1 className="text-2xl font-bold text-[#3a3f52]">
               Login Dashboard
@@ -91,24 +84,19 @@ export default function LoginPage() {
           </div>
 
           {sessionExpired && (
-            <div className="rounded-2xl p-3 mb-4 text-sm text-center font-medium flex items-center gap-2"
-              style={{ background: "rgba(255,219,182,0.3)", border: "1px solid rgba(255,219,182,0.6)", color: "#5D688A" }}>
+            <NeuAlert className="mb-4 flex items-center gap-2 text-center font-medium" tone="secondary">
               <Clock className="w-4 h-4 shrink-0" />
               Sesi Anda telah berakhir (6 jam). Silakan login kembali.
-            </div>
+            </NeuAlert>
           )}
 
           {error && (
-            <div
-              className="rounded-2xl p-3 mb-5 text-sm text-center font-medium"
-              style={{
-                background: "rgba(247,165,165,0.2)",
-                border: "1px solid rgba(247,165,165,0.4)",
-                color: "#c0504f",
-              }}
+            <NeuAlert
+              className="mb-5 text-center font-medium"
+              tone="danger"
             >
               {error}
-            </div>
+            </NeuAlert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,20 +104,12 @@ export default function LoginPage() {
               <label className="block text-sm font-semibold text-[#5D688A] mb-2">
                 <Mail className="w-3.5 h-3.5 inline mr-1" /> Email
               </label>
-              <input
+              <NeuInput
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="bunga@dentist.com"
                 required
-                className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.7)",
-                  border: "1.5px solid rgba(93,104,138,0.2)",
-                  color: "#3a3f52",
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "#F7A5A5")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(93,104,138,0.2)")}
               />
             </div>
 
@@ -137,31 +117,21 @@ export default function LoginPage() {
               <label className="block text-sm font-semibold text-[#5D688A] mb-2">
                 <Lock className="w-3.5 h-3.5 inline mr-1" /> Password
               </label>
-              <input
+              <NeuInput
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="........"
                 required
-                className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.7)",
-                  border: "1.5px solid rgba(93,104,138,0.2)",
-                  color: "#3a3f52",
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "#F7A5A5")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(93,104,138,0.2)")}
               />
             </div>
 
-            <button
+            <NeuButton
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 mt-2 tap-feedback"
-              style={{
-                background: "linear-gradient(135deg, #5D688A 0%, #7a88b0 100%)",
-                boxShadow: "0 6px 20px rgba(93,104,138,0.35)",
-              }}
+              variant="primary"
+              size="lg"
+              className="mt-2 w-full"
             >
               {loading ? (
                 <>
@@ -170,14 +140,17 @@ export default function LoginPage() {
               ) : (
                 "Masuk ke Dashboard"
               )}
-            </button>
+            </NeuButton>
           </form>
 
           <p className="text-center text-xs text-[#5D688A]/50 mt-6">
             Dashboard ini hanya untuk dokter gigi yang berwenang.
           </p>
-        </div>
+        </NeuCard>
       </div>
     </div>
   );
 }
+
+
+

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { gsheet } from "@/lib/gsheet";
+import { getSchedule, getWeekSchedules, setSchedule } from "@/lib/db/schedules";
 import { scheduleSchema } from "@/lib/validators";
 import { auth } from "@/lib/auth";
 
@@ -10,15 +10,17 @@ export async function GET(req: NextRequest) {
     const week = searchParams.get("week");
 
     if (week) {
-      const data = await gsheet.call("sch_get_week", { koasId: "bunga", weekStart: week });
+      // Parse the week start date
+      const [y, m, d] = week.split("-").map(Number);
+      const startDate = new Date(y, m - 1, d);
+      const data = await getWeekSchedules(startDate);
       return NextResponse.json(Array.isArray(data) ? data : [], {
         headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
       });
     }
 
     if (date) {
-      const data = await gsheet.call("sch_get", { koasId: "bunga", date });
-      const schedule = (data && typeof data === "object" && !Array.isArray(data)) ? data : { date, slots: [] };
+      const schedule = await getSchedule(date);
       return NextResponse.json(schedule, {
         headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
       });
@@ -28,10 +30,7 @@ export async function GET(req: NextRequest) {
     const today = new Date();
     const day = today.getDay();
     const mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (day === 0 ? 6 : day - 1), 0, 0, 0, 0);
-    const y = mon.getFullYear();
-    const m = String(mon.getMonth() + 1).padStart(2, "0");
-    const d = String(mon.getDate()).padStart(2, "0");
-    const data = await gsheet.call("sch_get_week", { koasId: "bunga", weekStart: `${y}-${m}-${d}` });
+    const data = await getWeekSchedules(mon);
     return NextResponse.json(Array.isArray(data) ? data : [], {
       headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
     });
@@ -52,12 +51,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Data tidak valid", details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const result = await gsheet.call("sch_set", {
-      koasId: "bunga",
-      date: parsed.data.date,
-      slots: parsed.data.slots,
-    });
-    return NextResponse.json(result, { status: 201 });
+    await setSchedule(parsed.data.date, parsed.data.slots);
+    return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal menyimpan jadwal" }, { status: 500 });

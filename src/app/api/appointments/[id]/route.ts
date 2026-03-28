@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { gsheet } from "@/lib/gsheet";
+import { getAppointment, updateAppointmentStatus, deleteAppointment } from "@/lib/db/appointments";
 import { auth } from "@/lib/auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const data = await gsheet.call("apt_get", { id });
+    const data = await getAppointment(id);
     if (!data) return NextResponse.json({ error: "Tidak ditemukan" }, { status: 404 });
     return NextResponse.json(data);
   } catch (error) {
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Status tidak valid" }, { status: 400 });
     }
 
-    const updated = await gsheet.call("apt_update_status", { id, status });
+    const updated = await updateAppointmentStatus(id, status);
     if (!updated) return NextResponse.json({ error: "Tidak ditemukan" }, { status: 404 });
     return NextResponse.json(updated);
   } catch (error) {
@@ -41,8 +41,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
-    const result = await gsheet.call("apt_delete", { id });
-    return NextResponse.json(result);
+    const success = await deleteAppointment(id);
+    return NextResponse.json({ success });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Gagal hapus" }, { status: 500 });

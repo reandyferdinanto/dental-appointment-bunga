@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, hashPassword } from "@/lib/auth";
+import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { gsheet } from "@/lib/gsheet";
 
-// GET — list all admins (names + emails only, no hashes)
+// GET — list all admins (names + emails only, no hashes) from MongoDB
 export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
-    const raw = await gsheet.call("admin_list") as Array<Record<string, string>> | null;
-    if (!raw || !Array.isArray(raw)) return NextResponse.json([]);
+    const db = await getDb();
+    const raw = await db.collection(COLLECTIONS.admins).find({}).toArray();
     // Strip password hashes before returning
     const safe = raw.map(a => ({ id: a.id, name: a.name, email: a.email, role: a.role, createdAt: a.createdAt }));
     return NextResponse.json(safe);
@@ -26,6 +27,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
 
+  const db = await getDb();
+
   // ── Add new admin ───────────────────────────────────────────────────────────
   if (action === "add") {
     const { name, email, password, role = "admin" } = body;
@@ -33,8 +36,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name, email, dan password wajib diisi" }, { status: 400 });
     }
     const passwordHash = hashPassword(password);
-    const result = await gsheet.call("admin_create", { name, email, passwordHash, role });
-    return NextResponse.json(result);
+    const { v4: uuidv4 } = await import("uuid");
+    const admin = { id: uuidv4(), name, email, passwordHash, role, createdAt: new Date().toISOString() };
+
+    await db.collection(COLLECTIONS.admins).insertOne({ ...admin, _id: admin.id as unknown as import("mongodb").ObjectId });
+
+    // Backup to GSheet
+    gsheet.call("admin_create", { name, email, passwordHash, role }).catch(err => {
+      console.error("[admin] GSheet backup error:", err);
+    });
+
+    return NextResponse.json({ id: admin.id, name, email, role });
   }
 
   // ── Change own password ─────────────────────────────────────────────────────
@@ -47,26 +59,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
     }
     const passwordHash = hashPassword(newPassword);
-    const result = await gsheet.call("admin_update_password", { id, passwordHash });
-    return NextResponse.json(result);
+    await db.collection(COLLECTIONS.admins).updateOne({ id }, { $set: { passwordHash } });
+
+    // Backup to GSheet
+    gsheet.call("admin_update_password", { id, passwordHash }).catch(err => {
+      console.error("[admin] GSheet backup error:", err);
+    });
+
+    return NextResponse.json({ success: true });
   }
 
   // ── Update name/email ───────────────────────────────────────────────────────
   if (action === "update") {
     const { id, name, email } = body;
     if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
-    const result = await gsheet.call("admin_update", { id, name, email });
-    return NextResponse.json(result);
+
+    const updateData: Record<string, string> = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+
+    await db.collection(COLLECTIONS.admins).updateOne({ id }, { $set: updateData });
+
+    // Backup to GSheet
+    gsheet.call("admin_update", { id, name, email }).catch(err => {
+      console.error("[admin] GSheet backup error:", err);
+    });
+
+    return NextResponse.json({ success: true });
   }
 
   // ── Delete admin ────────────────────────────────────────────────────────────
   if (action === "delete") {
     const { id } = body;
     if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
-    const result = await gsheet.call("admin_delete", { id });
-    return NextResponse.json(result);
+
+    await db.collection(COLLECTIONS.admins).deleteOne({ id });
+
+    // Backup to GSheet
+    gsheet.call("admin_delete", { id }).catch(err => {
+      console.error("[admin] GSheet backup error:", err);
+    });
+
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
-

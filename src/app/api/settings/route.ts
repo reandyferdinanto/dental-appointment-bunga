@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { gsheet } from "@/lib/gsheet";
 
 /**
@@ -16,8 +17,6 @@ function normalizeTimeStr(val: unknown, fallback: string): string {
   // ISO date string — extract UTC time portion
   const match = str.match(/T(\d{2}):(\d{2})/);
   if (match) {
-    // Google Sheets epoch is 1899-12-30 00:00:00 UTC, but times are stored as
-    // local-time fractions. The UTC hours in the ISO string IS the local time.
     return `${match[1]}:${match[2]}`;
   }
   return fallback;
@@ -30,9 +29,9 @@ function normalizeSettings(raw: Record<string, unknown>) {
     ...raw,
     // Always normalize time fields regardless of how Sheets serialized them
     workHourStart: normalizeTimeStr(raw.workHourStart, defaults.workHourStart),
-    workHourEnd:   normalizeTimeStr(raw.workHourEnd,   defaults.workHourEnd),
-    breakStart:    normalizeTimeStr(raw.breakStart,    defaults.breakStart),
-    breakEnd:      normalizeTimeStr(raw.breakEnd,      defaults.breakEnd),
+    workHourEnd: normalizeTimeStr(raw.workHourEnd, defaults.workHourEnd),
+    breakStart: normalizeTimeStr(raw.breakStart, defaults.breakStart),
+    breakEnd: normalizeTimeStr(raw.breakEnd, defaults.breakEnd),
     slotDurationMinutes: Number(raw.slotDurationMinutes) || defaults.slotDurationMinutes,
     services: Array.isArray(raw.services)
       ? raw.services
@@ -42,38 +41,53 @@ function normalizeSettings(raw: Record<string, unknown>) {
   };
 }
 
+// ── GET: Read from MongoDB ──────────────────────────────────────────────────
 export async function GET() {
   try {
-    const data = await gsheet.call("settings_get");
-    if (!data || typeof data !== "object" || "error" in (data as object)) {
+    const db = await getDb();
+    const data = await db.collection(COLLECTIONS.settings).findOne({ _id: "main" as unknown as import("mongodb").ObjectId });
+    if (!data) {
       return NextResponse.json(getDefaultSettings());
     }
-    return NextResponse.json(normalizeSettings(data as Record<string, unknown>));
+    const { _id, ...rest } = data;
+    void _id;
+    return NextResponse.json(normalizeSettings(rest as Record<string, unknown>));
   } catch {
     return NextResponse.json(getDefaultSettings());
   }
 }
 
+// ── POST: Write to MongoDB + Google Sheets (backup) ─────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Sanitize: ensure time fields are plain HH:mm strings before sending to Sheets
-    // (prevents Google Sheets from auto-converting them to Date objects)
+    // Sanitize: ensure time fields are plain HH:mm strings
     const sanitized = {
       ...body,
       workHourStart: normalizeTimeStr(body.workHourStart, "08:00"),
-      workHourEnd:   normalizeTimeStr(body.workHourEnd,   "16:00"),
-      breakStart:    normalizeTimeStr(body.breakStart,    "12:00"),
-      breakEnd:      normalizeTimeStr(body.breakEnd,      "13:00"),
+      workHourEnd: normalizeTimeStr(body.workHourEnd, "16:00"),
+      breakStart: normalizeTimeStr(body.breakStart, "12:00"),
+      breakEnd: normalizeTimeStr(body.breakEnd, "13:00"),
       slotDurationMinutes: Number(body.slotDurationMinutes) || 30,
       services: Array.isArray(body.services) ? body.services : [],
     };
 
-    const result = await gsheet.call("settings_set", sanitized as Record<string, unknown>);
-    // Explicitly bust settings cache so next GET is fresh
+    // Write to MongoDB
+    const db = await getDb();
+    await db.collection(COLLECTIONS.settings).updateOne(
+      { _id: "main" as unknown as import("mongodb").ObjectId },
+      { $set: sanitized },
+      { upsert: true }
+    );
+
+    // Backup to Google Sheets (fire-and-forget)
+    gsheet.call("settings_set", sanitized as Record<string, unknown>).catch(err => {
+      console.error("[settings] GSheet backup error:", err);
+    });
     gsheet.invalidate("settings_set");
-    return NextResponse.json(result ?? { success: true });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[settings POST]", error);
     return NextResponse.json({ error: "Gagal menyimpan pengaturan" }, { status: 500 });
@@ -107,4 +121,3 @@ function getDefaultSettings() {
     announcement: "",
   };
 }
-

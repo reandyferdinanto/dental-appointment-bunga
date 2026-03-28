@@ -14,38 +14,37 @@ import { sendMessage, answerCallbackQuery } from "./api";
 import {
   getSession, setSession, resetSession, pruneExpired,
 } from "./sessions";
-
-// ── Gsheet helper (reuse existing client) ─────────────────────────────────────
-const API_URL = process.env.GSHEET_API_URL ?? "";
-const SECRET  = process.env.GSHEET_SECRET  ?? "";
+import { getSchedule, getWeekSchedules } from "@/lib/db/schedules";
+import { createAppointment } from "@/lib/db/appointments";
+import { getDb, COLLECTIONS } from "@/lib/mongodb";
 
 // ── Clinic settings (fetched from Google Sheets, cached 5 min) ───────────────
 interface ClinicSettings {
-  clinicName:          string;
-  doctorName:          string;
-  phone:               string;
-  whatsapp:            string;
-  address:             string;
-  services:            string[];
-  instagramUrl:        string;
-  lineId:              string;
-  announcement:        string;
-  workHourStart:       string;
-  workHourEnd:         string;
+  clinicName: string;
+  doctorName: string;
+  phone: string;
+  whatsapp: string;
+  address: string;
+  services: string[];
+  instagramUrl: string;
+  lineId: string;
+  announcement: string;
+  workHourStart: string;
+  workHourEnd: string;
 }
 
 const SETTINGS_DEFAULT: ClinicSettings = {
-  clinicName:    "Klinik Gigi drg. Natasya Bunga Maureen",
-  doctorName:    "Natasya Bunga Maureen",
-  phone:         "",
-  whatsapp:      "",
-  address:       "Klinik Gigi RSGM / Klinik Stase",
-  services:      ["Pemeriksaan Gigi","Pencabutan Gigi","Penambalan Gigi","Pembersihan Karang Gigi","Perawatan Saluran Akar"],
-  instagramUrl:  "",
-  lineId:        "",
-  announcement:  "",
+  clinicName: "Klinik Gigi drg. Natasya Bunga Maureen",
+  doctorName: "Natasya Bunga Maureen",
+  phone: "",
+  whatsapp: "",
+  address: "Klinik Gigi RSGM / Klinik Stase",
+  services: ["Pemeriksaan Gigi", "Pencabutan Gigi", "Penambalan Gigi", "Pembersihan Karang Gigi", "Perawatan Saluran Akar"],
+  instagramUrl: "",
+  lineId: "",
+  announcement: "",
   workHourStart: "08:00",
-  workHourEnd:   "16:00",
+  workHourEnd: "16:00",
 };
 
 let _settingsCache: ClinicSettings | null = null;
@@ -58,8 +57,9 @@ async function getSettings(): Promise<ClinicSettings> {
     return _settingsCache;
   }
   try {
-    const raw = await gsheetCall("settings_get") as Record<string, unknown>;
-    if (!raw || raw.error) return SETTINGS_DEFAULT;
+    const db = await getDb();
+    const raw = await db.collection(COLLECTIONS.settings).findOne({ _id: "main" as unknown as import("mongodb").ObjectId }) as Record<string, unknown> | null;
+    if (!raw) return SETTINGS_DEFAULT;
 
     // Parse services if stored as JSON string
     let services = SETTINGS_DEFAULT.services;
@@ -73,17 +73,17 @@ async function getSettings(): Promise<ClinicSettings> {
       .replace(/^drg\.?\s*/i, "").trim() || SETTINGS_DEFAULT.doctorName;
 
     _settingsCache = {
-      clinicName:    String(raw.clinicName    ?? SETTINGS_DEFAULT.clinicName),
+      clinicName: String(raw.clinicName ?? SETTINGS_DEFAULT.clinicName),
       doctorName,
-      phone:         String(raw.phone         ?? ""),
-      whatsapp:      String(raw.whatsapp      ?? ""),
-      address:       String(raw.address       ?? SETTINGS_DEFAULT.address),
+      phone: String(raw.phone ?? ""),
+      whatsapp: String(raw.whatsapp ?? ""),
+      address: String(raw.address ?? SETTINGS_DEFAULT.address),
       services,
-      instagramUrl:  String(raw.instagramUrl  ?? ""),
-      lineId:        String(raw.lineId        ?? ""),
-      announcement:  String(raw.announcement  ?? ""),
+      instagramUrl: String(raw.instagramUrl ?? ""),
+      lineId: String(raw.lineId ?? ""),
+      announcement: String(raw.announcement ?? ""),
       workHourStart: String(raw.workHourStart ?? SETTINGS_DEFAULT.workHourStart),
-      workHourEnd:   String(raw.workHourEnd   ?? SETTINGS_DEFAULT.workHourEnd),
+      workHourEnd: String(raw.workHourEnd ?? SETTINGS_DEFAULT.workHourEnd),
     };
     _settingsCachedAt = Date.now();
     return _settingsCache;
@@ -92,28 +92,10 @@ async function getSettings(): Promise<ClinicSettings> {
   }
 }
 
-async function gsheetCall(action: string, params: Record<string, unknown> = {}): Promise<unknown> {
-  if (!API_URL) {
-    console.error("[bot] GSHEET_API_URL is not set — cannot call:", action);
-    throw new Error("GSHEET_API_URL tidak dikonfigurasi");
-  }
-  const payload = JSON.stringify({ token: SECRET, action, ...params });
-  const url     = `${API_URL}?payload=${encodeURIComponent(payload)}`;
-  // 25-second timeout so we don't hang a Vercel function indefinitely
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 25000);
-  try {
-    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
-    return res.json();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 // ── Date helpers ──────────────────────────────────────────────────────────────
-const DAYS_ID   = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-const MONTHS_ID = ["Januari","Februari","Maret","April","Mei","Juni",
-                   "Juli","Agustus","September","Oktober","November","Desember"];
+const DAYS_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const MONTHS_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
 function fmtDateLocal(d: Date) {
   return `${DAYS_ID[d.getDay()]}, ${d.getDate()} ${MONTHS_ID[d.getMonth()]} ${d.getFullYear()}`;
@@ -128,14 +110,14 @@ function parseDateISO(raw: string): Date | null {
 
 function todayISO(): string {
   const t = new Date();
-  return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`;
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 }
 
 function plusDays(iso: string, n: number): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)!;
-  const d = new Date(+m[1], +m[2]-1, +m[3]);
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
   d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ── Education content ─────────────────────────────────────────────────────────
@@ -277,18 +259,18 @@ const EDU_MENU = {
   inline_keyboard: [
     [
       { text: "🪥 Scaling / Karang Gigi", callback_data: "edu_scaling" },
-      { text: "🦷 Cabut Gigi",            callback_data: "edu_cabut"   },
+      { text: "🦷 Cabut Gigi", callback_data: "edu_cabut" },
     ],
     [
-      { text: "🔧 Tambal Gigi",            callback_data: "edu_tambal"  },
+      { text: "🔧 Tambal Gigi", callback_data: "edu_tambal" },
       { text: "🩺 Perawatan Saluran Akar", callback_data: "edu_saluran" },
     ],
     [
-      { text: "✨ Pemutihan Gigi",          callback_data: "edu_putih"   },
-      { text: "💎 Veneer",                 callback_data: "edu_veneer"  },
+      { text: "✨ Pemutihan Gigi", callback_data: "edu_putih" },
+      { text: "💎 Veneer", callback_data: "edu_veneer" },
     ],
     [
-      { text: "👶 Gigi Anak",              callback_data: "edu_anak"    },
+      { text: "👶 Gigi Anak", callback_data: "edu_anak" },
     ],
     [
       { text: "⬅️ Kembali ke Menu Utama", callback_data: "menu" },
@@ -319,7 +301,7 @@ function formatWeekSchedule(week: ScheduleEntry[]): string {
 // ── Handle /start and /menu ───────────────────────────────────────────────────
 async function handleStart(chatId: number, firstName: string) {
   resetSession(chatId);
-  const s    = await getSettings();
+  const s = await getSettings();
   const name = firstName ? ` ${firstName}` : "";
   await sendMessage(
     chatId,
@@ -330,10 +312,10 @@ async function handleStart(chatId: number, firstName: string) {
 
 // ── Handle callback queries (button taps) ─────────────────────────────────────
 export async function handleCallback(
-  chatId:          number,
+  chatId: number,
   callbackQueryId: string,
-  data:            string,
-  firstName:       string,
+  data: string,
+  firstName: string,
 ) {
   await answerCallbackQuery(callbackQueryId);
   pruneExpired();
@@ -348,14 +330,16 @@ export async function handleCallback(
     await sendMessage(chatId, "🔍 Mengecek jadwal praktik...", { parse_mode: "HTML" });
     try {
       const today = todayISO();
-      const raw   = await gsheetCall("sch_get_week", { koasId: "bunga", weekStart: today }) as ScheduleEntry[];
-      const msg   = formatWeekSchedule(Array.isArray(raw) ? raw : []);
+      const [y, mo, dy] = today.split("-").map(Number);
+      const startDate = new Date(y, mo - 1, dy);
+      const raw = await getWeekSchedules(startDate) as ScheduleEntry[];
+      const msg = formatWeekSchedule(Array.isArray(raw) ? raw : []);
       await sendMessage(chatId, msg, {
         parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [{ text: "📋 Buat Janji Temu", callback_data: "booking" }],
-            [{ text: "⬅️ Menu Utama",       callback_data: "menu"    }],
+            [{ text: "⬅️ Menu Utama", callback_data: "menu" }],
           ],
         },
       });
@@ -385,7 +369,7 @@ export async function handleCallback(
           inline_keyboard: [
             [{ text: "📋 Buat Janji Temu", callback_data: "booking" }],
             [{ text: "⬅️ Tindakan Lainnya", callback_data: "edu_menu" }],
-            [{ text: "🏠 Menu Utama",       callback_data: "menu"     }],
+            [{ text: "🏠 Menu Utama", callback_data: "menu" }],
           ],
         },
       });
@@ -397,20 +381,20 @@ export async function handleCallback(
   if (data === "kontak") {
     const s = await getSettings();
     const waNumber = s.whatsapp.replace(/\D/g, "").replace(/^0/, "62");
-    const waUrl    = waNumber ? `https://wa.me/${waNumber}` : null;
-    const webUrl   = process.env.NEXTAUTH_URL ?? "https://drg-bunga-appointment.vercel.app";
+    const waUrl = waNumber ? `https://wa.me/${waNumber}` : null;
+    const webUrl = process.env.NEXTAUTH_URL ?? "https://drg-bunga-appointment.vercel.app";
 
     const lines: string[] = [
       `📞 <b>Kontak & Lokasi Klinik</b>\n`,
       `👩‍⚕️ <b>drg. ${s.doctorName}</b>`,
       `🏥 ${s.address}`,
     ];
-    if (s.phone)    lines.push(`📱 <b>Telepon:</b> ${s.phone}`);
+    if (s.phone) lines.push(`📱 <b>Telepon:</b> ${s.phone}`);
     if (s.whatsapp) lines.push(`💬 <b>WhatsApp:</b> ${s.whatsapp}`);
     if (s.workHourStart && s.workHourEnd)
       lines.push(`🕐 <b>Jam Praktik:</b> ${s.workHourStart} – ${s.workHourEnd}`);
     if (s.instagramUrl) lines.push(`📸 <b>Instagram:</b> ${s.instagramUrl}`);
-    if (s.lineId)       lines.push(`💚 <b>LINE:</b> ${s.lineId}`);
+    if (s.lineId) lines.push(`💚 <b>LINE:</b> ${s.lineId}`);
     lines.push(`\n📅 Reservasi & jadwal bisa langsung melalui bot ini!`);
 
     const keyboard: { text: string; url?: string; callback_data?: string }[][] = [];
@@ -450,9 +434,9 @@ Jangan ragu untuk bertanya apapun tentang kesehatan gigimu!`,
         parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "📋 Buat Janji Temu",   callback_data: "booking"  }],
+            [{ text: "📋 Buat Janji Temu", callback_data: "booking" }],
             [{ text: "🦷 Info Tindakan Gigi", callback_data: "edu_menu" }],
-            [{ text: "⬅️ Menu Utama",         callback_data: "menu"     }],
+            [{ text: "⬅️ Menu Utama", callback_data: "menu" }],
           ],
         },
       }
@@ -499,7 +483,7 @@ Pertama, ketik <b>nama lengkap</b> kamu:`,
     // Fetch available slots for this date
     await sendMessage(chatId, "⏳ Mengecek slot tersedia...");
     try {
-      const raw = await gsheetCall("sch_get", { koasId: "bunga", date }) as { date: string; slots: string[] };
+      const raw = await getSchedule(date) as { date: string; slots: string[] };
       const slots = raw?.slots ?? [];
 
       if (slots.length === 0) {
@@ -564,8 +548,8 @@ Apakah data di atas sudah benar?`,
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ Ya, Konfirmasi!",    callback_data: "booking_confirm_yes" },
-              { text: "❌ Batalkan",            callback_data: "cancel_booking"      },
+              { text: "✅ Ya, Konfirmasi!", callback_data: "booking_confirm_yes" },
+              { text: "❌ Batalkan", callback_data: "cancel_booking" },
             ],
           ],
         },
@@ -589,15 +573,15 @@ Apakah data di atas sudah benar?`,
     await sendMessage(chatId, "⏳ Memproses reservasi kamu...");
 
     try {
-      const result = await gsheetCall("apt_create", {
-        patientName:  name,
+      const result = await createAppointment({
+        patientName: name,
         patientPhone: phone,
         patientEmail: "",
-        koasId:       "bunga",
+        koasId: "bunga",
         date,
         time,
         complaint,
-      }) as Record<string, string>;
+      }) as unknown as Record<string, string>;
 
       resetSession(chatId);
 
@@ -663,12 +647,15 @@ async function showDatePicker(chatId: number) {
   await sendMessage(chatId, "🔍 Mengambil jadwal tersedia...");
   try {
     const today = todayISO();
-    const raw   = await gsheetCall("sch_get_week", { koasId: "bunga", weekStart: today }) as ScheduleEntry[];
-    const week  = Array.isArray(raw) ? raw : [];
+    const [y, mo, dy] = today.split("-").map(Number);
+    const startDate = new Date(y, mo - 1, dy);
+    const raw = await getWeekSchedules(startDate) as ScheduleEntry[];
+    const week = Array.isArray(raw) ? raw : [];
 
     // Also check next 7 days beyond the initial week
-    const nextWeek = await gsheetCall("sch_get_week", { koasId: "bunga", weekStart: plusDays(today, 7) }) as ScheduleEntry[];
-    const allDays  = [...week, ...(Array.isArray(nextWeek) ? nextWeek : [])];
+    const nextStart = new Date(y, mo - 1, dy + 7);
+    const nextWeek = await getWeekSchedules(nextStart) as ScheduleEntry[];
+    const allDays = [...week, ...(Array.isArray(nextWeek) ? nextWeek : [])];
     const available = allDays.filter(d => d.slots && d.slots.length > 0);
 
     if (available.length === 0) {
@@ -687,7 +674,7 @@ async function showDatePicker(chatId: number) {
     }
 
     const dateButtons: { text: string; callback_data: string }[][] = available.map(day => {
-      const d     = parseDateISO(day.date);
+      const d = parseDateISO(day.date);
       const label = d ? `${DAYS_ID[d.getDay()]} ${d.getDate()} ${MONTHS_ID[d.getMonth()]}` : day.date;
       return [{ text: `📅 ${label} (${day.slots.length} slot)`, callback_data: `book_date_${day.date}` }];
     });
@@ -708,8 +695,8 @@ async function showDatePicker(chatId: number) {
 // ── Handle text messages (conversation flow) ──────────────────────────────────
 export async function handleMessage(chatId: number, text: string, firstName: string) {
   pruneExpired();
-  const t    = text.trim();
-  const tl   = t.toLowerCase();
+  const t = text.trim();
+  const tl = t.toLowerCase();
   const sess = getSession(chatId);
 
   // ── Commands ───────────────────────────────────────────────────────────────
@@ -818,7 +805,7 @@ export async function handleMessage(chatId: number, text: string, firstName: str
           reply_markup: {
             inline_keyboard: [
               [{ text: "📋 Buat Janji Temu", callback_data: "booking" }],
-              [{ text: "⬅️ Menu Utama",      callback_data: "menu"    }],
+              [{ text: "⬅️ Menu Utama", callback_data: "menu" }],
             ],
           },
         }
@@ -833,7 +820,7 @@ export async function handleMessage(chatId: number, text: string, firstName: str
           reply_markup: {
             inline_keyboard: [
               [{ text: "📋 Buat Janji Sekarang!", callback_data: "booking" }],
-              [{ text: "⬅️ Menu Utama",           callback_data: "menu"    }],
+              [{ text: "⬅️ Menu Utama", callback_data: "menu" }],
             ],
           },
         }
@@ -841,7 +828,7 @@ export async function handleMessage(chatId: number, text: string, firstName: str
     }
 
     // Generic fallback — warm welcome for potential patients
-    const s    = await getSettings();
+    const s = await getSettings();
     const name = firstName ? ` <b>${firstName}</b>` : "";
     return sendMessage(
       chatId,
@@ -857,8 +844,8 @@ export async function handleMessage(chatId: number, text: string, firstName: str
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "▶️ Lanjutkan",  callback_data: "menu"          }],
-          [{ text: "❌ Batalkan",   callback_data: "cancel_booking" }],
+          [{ text: "▶️ Lanjutkan", callback_data: "menu" }],
+          [{ text: "❌ Batalkan", callback_data: "cancel_booking" }],
         ],
       },
     }

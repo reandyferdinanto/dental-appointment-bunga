@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { gsheet } from "@/lib/gsheet";
+import { listAppointments, createAppointment } from "@/lib/db/appointments";
 
 export async function GET() {
   try {
-    const data = await gsheet.call("apt_list");
+    const data = await listAppointments();
     return NextResponse.json(data ?? [], {
       headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
     });
@@ -16,13 +16,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const result = await gsheet.call("apt_create", body);
-    if (result && typeof result === "object" && "error" in result) {
-      return NextResponse.json(result, { status: 400 });
-    }
+    const result = await createAppointment(body);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Gagal membuat appointment" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "Gagal membuat appointment";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

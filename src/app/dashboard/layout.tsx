@@ -3,210 +3,307 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
-  LayoutDashboard, Calendar, CalendarClock, BookOpen,
-  LogOut, Menu, X, ChevronRight, Settings, Clock,
+  BookOpen,
+  Calendar,
+  CalendarClock,
+  ChevronRight,
+  Clock,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Settings,
+  X,
 } from "lucide-react";
+import {
+  NeuButton,
+  NeuCard,
+  NeuIconTile,
+} from "@/components/ui/neumorphism";
 
 const sidebarLinks = [
-  { href: "/dashboard",              label: "Overview",       icon: LayoutDashboard, emoji: "📊" },
-  { href: "/dashboard/appointments", label: "Janji Temu",     icon: Calendar,        emoji: "📅" },
-  { href: "/dashboard/schedules",    label: "Jadwal",         icon: CalendarClock,   emoji: "🗓️" },
-  { href: "/dashboard/logbook",      label: "E-Logbook",      icon: BookOpen,        emoji: "📖" },
-  { href: "/dashboard/settings",     label: "Pengaturan",     icon: Settings,        emoji: "⚙️" },
-];
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/appointments", label: "Janji Temu", icon: Calendar },
+  { href: "/dashboard/schedules", label: "Jadwal", icon: CalendarClock },
+  { href: "/dashboard/logbook", label: "E-Logbook", icon: BookOpen },
+  { href: "/dashboard/rekam-medis", label: "Rekam Medis", icon: FileText },
+  { href: "/dashboard/settings", label: "Pengaturan", icon: Settings },
+] as const;
 
 const ToothLogo = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 2C9.5 2 7.5 3.5 6.5 5.5C5.5 3.5 3.5 2 1.5 2C1.5 2 1 6 2 8.5C3 11 4 12 4 15C4 18 5 22 7 22C8.5 22 9 20 10 18C10.5 16.5 11 15 12 15C13 15 13.5 16.5 14 18C15 20 15.5 22 17 22C19 22 20 18 20 15C20 12 21 11 22 8.5C23 6 22.5 2 22.5 2C20.5 2 18.5 3.5 17.5 5.5C16.5 3.5 14.5 2 12 2Z"/>
+  <svg
+    viewBox="0 0 24 24"
+    className="h-5 w-5 fill-white"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12 2C9.5 2 7.5 3.5 6.5 5.5C5.5 3.5 3.5 2 1.5 2C1.5 2 1 6 2 8.5C3 11 4 12 4 15C4 18 5 22 7 22C8.5 22 9 20 10 18C10.5 16.5 11 15 12 15C13 15 13.5 16.5 14 18C15 20 15.5 22 17 22C19 22 20 18 20 15C20 12 21 11 22 8.5C23 6 22.5 2 22.5 2C20.5 2 18.5 3.5 17.5 5.5C16.5 3.5 14.5 2 12 2Z" />
   </svg>
 );
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const pathname  = usePathname();
-  const router    = useRouter();
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
   const { data: session } = useSession();
-  const [sidebarOpen, setSidebarOpen]   = useState(false);
-  const [expiryWarning, setExpiryWarning] = useState<number | null>(null); // minutes left
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expiryWarning, setExpiryWarning] = useState<number | null>(null);
 
-  // ── 6-hour session expiry monitor ─────────────────────────────────────────
   useEffect(() => {
-    const loginTime = (session?.user as { loginTime?: number } | undefined)?.loginTime;
+    const loginTime = (session?.user as { loginTime?: number } | undefined)
+      ?.loginTime;
     if (!loginTime) return;
 
-    const SIX_HOURS = 6 * 60 * 60 * 1000;
-    const WARN_AT   = 15 * 60 * 1000; // warn 15 min before expiry
+    const sixHours = 6 * 60 * 60 * 1000;
+    const warnAt = 15 * 60 * 1000;
 
     const tick = () => {
-      const elapsed = Date.now() - loginTime;
-      const remaining = SIX_HOURS - elapsed;
+      const remaining = sixHours - (Date.now() - loginTime);
 
       if (remaining <= 0) {
-        signOut({ callbackUrl: "/login?reason=session_expired" });
+        void signOut({ callbackUrl: "/login?reason=session_expired" });
         return;
       }
-      if (remaining <= WARN_AT) {
-        setExpiryWarning(Math.ceil(remaining / 60000));
-      } else {
-        setExpiryWarning(null);
-      }
+
+      setExpiryWarning(
+        remaining <= warnAt ? Math.ceil(remaining / 60000) : null
+      );
     };
 
     tick();
-    const id = setInterval(tick, 30_000); // check every 30 s
-    return () => clearInterval(id);
-  }, [session, router]);
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [session]);
 
-  const NavLink = ({ link, onClick }: { link: typeof sidebarLinks[0]; onClick?: () => void }) => {
-    const isActive = pathname === link.href;
+  const NavLink = ({
+    href,
+    label,
+    icon: Icon,
+    onClick,
+  }: {
+    href: string;
+    label: string;
+    icon: (typeof sidebarLinks)[number]["icon"];
+    onClick?: () => void;
+  }) => {
+    const isActive = pathname === href;
+
     return (
-      <Link href={link.href} onClick={onClick}
-        className="flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200 tap-feedback"
-        style={isActive ? {
-          background: "linear-gradient(135deg, #5D688A 0%, #7a88b0 100%)",
-          color: "white",
-          boxShadow: "0 4px 15px rgba(93,104,138,0.35)"
-        } : { color: "rgba(93,104,138,0.75)" }}
-        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.5)"; }}
-        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = ""; }}
-      >
-        <link.icon className="w-5 h-5 shrink-0" />
-        <span className="flex-1">{link.label}</span>
-        {isActive && <ChevronRight className="w-4 h-4 opacity-70" />}
+      <Link href={href} onClick={onClick} className="block">
+        <NeuCard
+          className={`mb-2 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all tap-feedback ${
+            isActive
+              ? "bg-[#4e6785] text-white"
+              : "neu-card-hover text-[#4e6785]"
+          }`}
+        >
+          <Icon className="h-5 w-5 shrink-0" />
+          <span className="flex-1">{label}</span>
+          {isActive ? <ChevronRight className="h-4 w-4 opacity-70" /> : null}
+        </NeuCard>
       </Link>
     );
   };
 
-  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+  const renderSidebarContent = (isMobile = false) => (
     <>
-      {/* Brand */}
-      <div className="p-5" style={{ borderBottom: "1px solid rgba(93,104,138,0.12)" }}>
+      <div
+        className="p-5"
+        style={{ borderBottom: "1px solid rgba(211,221,232,0.78)" }}
+      >
         <div className="flex items-center gap-3">
-          <div className="relative w-10 h-10 shrink-0">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#F7A5A5] to-[#FFDBB6] opacity-50 blur-sm" />
-            <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)", boxShadow: "0 4px 15px rgba(93,104,138,0.3)" }}>
+          <div className="relative h-10 w-10 shrink-0">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#FDACAC] to-[#FEC3C3] opacity-35 blur-[6px]" />
+            <NeuIconTile tone="primary" className="relative h-10 w-10 rounded-2xl">
               <ToothLogo />
-            </div>
+            </NeuIconTile>
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="font-bold text-sm text-[#3a3f52] block truncate">drg. Bunga Maureen</span>
-            <span className="text-[10px] font-medium" style={{ color: "#F7A5A5" }}>Dashboard Koas ✨</span>
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-bold text-[#2c3d52]">
+              drg. Bunga Maureen
+            </span>
+            <span className="text-[10px] font-medium text-[#E79191]">
+              Healthcare SaaS Admin
+            </span>
           </div>
-          {isMobile && (
-            <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg hover:bg-white/50 text-[#5D688A] tap-feedback">
-              <X className="w-5 h-5" />
-            </button>
-          )}
+          {isMobile ? (
+            <NeuButton
+              onClick={() => setSidebarOpen(false)}
+              size="sm"
+              className="rounded-xl px-2 py-2"
+            >
+              <X className="h-5 w-5" />
+            </NeuButton>
+          ) : null}
         </div>
       </div>
 
-      {/* Nav links */}
-      <nav className="flex-1 p-3 space-y-1">
-        {sidebarLinks.map(link => (
-          <NavLink key={link.href} link={link} onClick={isMobile ? () => setSidebarOpen(false) : undefined} />
+      <nav className="flex-1 p-3">
+        {sidebarLinks.map((link) => (
+          <NavLink
+            key={link.href}
+            href={link.href}
+            label={link.label}
+            icon={link.icon}
+            onClick={isMobile ? () => setSidebarOpen(false) : undefined}
+          />
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="p-3" style={{ borderTop: "1px solid rgba(93,104,138,0.12)" }}>
-        <Link href="/"
-          className="block px-4 py-2.5 rounded-2xl text-sm font-medium text-[#5D688A]/60 hover:text-[#5D688A] hover:bg-white/50 transition-all mb-1 tap-feedback"
-          onClick={isMobile ? () => setSidebarOpen(false) : undefined}>
+      <div
+        className="p-3"
+        style={{ borderTop: "1px solid rgba(211,221,232,0.78)" }}
+      >
+        <Link
+          href="/"
+          className="mb-2 block rounded-2xl px-4 py-2.5 text-sm font-medium text-[#4e6785] transition-all tap-feedback btn-neu-secondary"
+          onClick={isMobile ? () => setSidebarOpen(false) : undefined}
+        >
           ← Ke Website
         </Link>
-        <button onClick={() => signOut({ callbackUrl: "/" })}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all tap-feedback"
-          style={{ color: "#F7A5A5" }}
-          onMouseEnter={e => e.currentTarget.style.background = "rgba(247,165,165,0.12)"}
-          onMouseLeave={e => e.currentTarget.style.background = ""}>
-          <LogOut className="w-5 h-5" />
+        <NeuButton
+          onClick={() => signOut({ callbackUrl: "/" })}
+          variant="danger"
+          className="w-full justify-start px-4 py-2.5 text-sm font-medium"
+        >
+          <LogOut className="h-5 w-5" />
           Keluar
-        </button>
+        </NeuButton>
       </div>
     </>
   );
 
   return (
     <div className="min-h-screen bg-mesh">
-      {/* Mobile header */}
-      <div className="lg:hidden sticky top-0 z-50 flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(255,242,239,0.92)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(247,165,165,0.2)" }}>
-        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-[#5D688A] hover:bg-white/50 transition-colors tap-feedback" aria-label="Buka menu">
-          <Menu className="w-5 h-5" />
-        </button>
+      <div
+        className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 lg:hidden"
+        style={{
+          background: "#e6e7ee",
+          borderBottom: "1px solid rgba(255,255,255,0.58)",
+          boxShadow: "8px 8px 16px rgba(163,177,198,0.16), -8px -8px 16px rgba(255,255,255,0.5)",
+        }}
+      >
+        <NeuButton
+          onClick={() => setSidebarOpen(true)}
+          size="sm"
+          className="rounded-xl px-2 py-2"
+          aria-label="Buka menu"
+        >
+          <Menu className="h-5 w-5" />
+        </NeuButton>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #5D688A, #7a88b0)" }}>
+          <NeuIconTile tone="primary" className="h-7 w-7 rounded-xl">
             <ToothLogo />
-          </div>
-          <span className="font-bold text-sm text-[#3a3f52]">Dashboard</span>
+          </NeuIconTile>
+          <span className="text-sm font-bold text-[#2c3d52]">Dashboard</span>
         </div>
         <div className="w-9" />
       </div>
 
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
+      {sidebarOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-[#3a3f52]/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-72 flex flex-col animate-slide-up"
-            style={{ background: "rgba(255,242,239,0.97)", backdropFilter: "blur(20px)", borderRight: "1px solid rgba(255,255,255,0.6)" }}>
-            <SidebarContent isMobile />
+          <div
+            className="absolute inset-0 bg-[#3a3f52]/40 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div
+            className="absolute bottom-0 left-0 top-0 flex w-72 flex-col animate-slide-up"
+            style={{
+              background: "#e6e7ee",
+              borderRight: "1px solid rgba(255,255,255,0.58)",
+              boxShadow: "12px 0 24px rgba(163,177,198,0.16)",
+            }}
+          >
+            {renderSidebarContent(true)}
           </div>
         </div>
-      )}
+      ) : null}
 
       <div className="flex">
-        {/* Desktop sidebar */}
-        <aside className="hidden lg:flex flex-col fixed left-0 top-0 bottom-0 w-64 z-40"
-          style={{ background: "rgba(255,242,239,0.88)", backdropFilter: "blur(20px)", borderRight: "1px solid rgba(255,255,255,0.6)", boxShadow: "4px 0 24px rgba(93,104,138,0.08)" }}>
-          <SidebarContent />
+        <aside
+          className="fixed bottom-0 left-0 top-0 z-40 hidden w-64 flex-col lg:flex"
+          style={{
+            background: "#e6e7ee",
+            borderRight: "1px solid rgba(255,255,255,0.58)",
+            boxShadow: "10px 0 20px rgba(163,177,198,0.14)",
+          }}
+        >
+          {renderSidebarContent()}
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 lg:ml-64 min-h-screen">
-          {/* Session expiry warning */}
-          {expiryWarning !== null && (
-            <div className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold"
-              style={{ background: "linear-gradient(135deg,#FFDBB6,#F7A5A5)", color: "#5D688A" }}>
-              <Clock className="w-3.5 h-3.5 shrink-0" />
-              Sesi Anda akan berakhir dalam <strong>{expiryWarning} menit</strong>. Simpan pekerjaan Anda.
-              <button onClick={() => signOut({ callbackUrl: "/login" })}
-                className="ml-auto px-3 py-1 rounded-lg font-bold text-xs hover:opacity-80 transition-opacity"
-                style={{ background: "rgba(93,104,138,0.2)" }}>
+        <main className="min-h-screen flex-1 lg:ml-64">
+          {expiryWarning !== null ? (
+            <div
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold"
+              style={{
+                background: "#e6e7ee",
+                color: "#4e6785",
+                borderBottom: "1px solid rgba(255,255,255,0.58)",
+              }}
+            >
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              Sesi Anda akan berakhir dalam{" "}
+              <strong>{expiryWarning} menit</strong>. Simpan pekerjaan Anda.
+              <NeuButton
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                size="sm"
+                className="ml-auto px-3 py-1 text-xs"
+              >
                 Login Ulang
-              </button>
+              </NeuButton>
             </div>
-          )}
-          {/* Add bottom padding on mobile for bottom nav */}
-          <div className="p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">{children}</div>
+          ) : null}
+          <div className="p-4 pb-24 sm:p-6 lg:p-8 lg:pb-8">{children}</div>
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
       <nav className="mobile-bottom-nav lg:hidden">
-        <div className="flex items-center justify-around px-2 pt-2 pb-1">
+        <div className="flex items-center justify-around px-2 pb-1 pt-2">
           {sidebarLinks.map((link) => {
             const isActive = pathname === link.href;
             const Icon = link.icon;
+
             return (
-              <Link key={link.href} href={link.href}
-                className="flex flex-col items-center gap-1 px-3 py-2 rounded-2xl transition-all tap-feedback min-w-[56px]"
-                style={isActive ? {
-                  background: "rgba(247,165,165,0.18)",
-                } : {}}>
-                <Icon className="w-5 h-5 transition-colors"
-                  style={{ color: isActive ? "#5D688A" : "rgba(93,104,138,0.45)" }} />
-                <span className="text-[9px] font-semibold transition-colors leading-tight"
-                  style={{ color: isActive ? "#5D688A" : "rgba(93,104,138,0.45)" }}>
+              <Link
+                key={link.href}
+                href={link.href}
+                className="tap-feedback flex min-w-[56px] flex-col items-center gap-1 rounded-2xl px-3 py-2 transition-all"
+                style={
+                  isActive
+                    ? {
+                        background: "#e6e7ee",
+                        border: "1px solid rgba(255,255,255,0.58)",
+                        boxShadow:
+                          "4px 4px 8px rgba(163,177,198,0.18), -4px -4px 8px rgba(255,255,255,0.54)",
+                      }
+                    : {}
+                }
+              >
+                <Icon
+                  className="h-5 w-5 transition-colors"
+                  style={{
+                    color: isActive ? "#4e6785" : "rgba(78,103,133,0.45)",
+                  }}
+                />
+                <span
+                  className="text-[9px] font-semibold leading-tight transition-colors"
+                  style={{
+                    color: isActive ? "#4e6785" : "rgba(78,103,133,0.45)",
+                  }}
+                >
                   {link.label}
                 </span>
-                {isActive && (
-                  <span className="w-1 h-1 rounded-full" style={{ background: "#F7A5A5" }} />
-                )}
+                {isActive ? (
+                  <span
+                    className="h-1 w-1 rounded-full"
+                    style={{ background: "#FDACAC" }}
+                  />
+                ) : null}
               </Link>
             );
           })}
