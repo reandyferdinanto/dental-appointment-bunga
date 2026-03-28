@@ -333,3 +333,8 @@ Primary dashboard nav destinations:
 
 - homepage tooth CTA now uses a clearer outer raised shadow closer to the shared secondary button treatment, so the tooth reads more obviously as a lifted neumorphic component
 - the outline stroke is slightly stronger and the inner sheen is reduced, making the raised contour easier to see at a glance
+### Hero Tooth Strong Raised Pass
+
+- homepage tooth CTA now uses a stronger outer raised shadow and a clearer thin edge so the component reads more obviously lifted from the background
+- the inner inset effect is reduced further, which keeps the tooth from looking flat or over-embossed and makes the neumorphic raise more visible
+- the shared public tooth.svg asset now uses a pastel pink treatment so the center mark matches the UI accent palette

@@ -157,24 +157,24 @@ export default async function HomePage() {
                   className="h-full w-full"
                   style={{
                     filter:
-                      "drop-shadow(8px 8px 16px rgba(163,177,198,0.34)) drop-shadow(-7px -7px 14px rgba(255,255,255,0.68))",
+                      "drop-shadow(10px 10px 20px rgba(163,177,198,0.42)) drop-shadow(-9px -9px 18px rgba(255,255,255,0.76))",
                   }}
                 >
                   <defs>
                     <filter id="hero-tooth-raised" x="-25%" y="-25%" width="150%" height="150%">
-                      <feDropShadow dx="0.85" dy="0.85" stdDeviation="0.75" floodColor="#b8c1cb" floodOpacity="0.16" />
-                      <feDropShadow dx="-0.8" dy="-0.8" stdDeviation="0.7" floodColor="#ffffff" floodOpacity="0.38" />
+                      <feDropShadow dx="1.05" dy="1.05" stdDeviation="0.92" floodColor="#b8c1cb" floodOpacity="0.2" />
+                      <feDropShadow dx="-0.95" dy="-0.95" stdDeviation="0.85" floodColor="#ffffff" floodOpacity="0.48" />
                     </filter>
                     <filter id="hero-tooth-inset" x="-25%" y="-25%" width="150%" height="150%">
-                      <feOffset dx="0.4" dy="0.4" />
-                      <feGaussianBlur stdDeviation="0.58" result="offset-blur" />
+                      <feOffset dx="0.22" dy="0.22" />
+                      <feGaussianBlur stdDeviation="0.34" result="offset-blur" />
                       <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse" />
-                      <feFlood floodColor="#bec7d0" floodOpacity="0.1" result="color" />
+                      <feFlood floodColor="#bec7d0" floodOpacity="0.04" result="color" />
                       <feComposite operator="in" in="color" in2="inverse" result="shadow" />
-                      <feOffset dx="-0.32" dy="-0.32" in="SourceAlpha" result="highlight-offset" />
-                      <feGaussianBlur stdDeviation="0.48" in="highlight-offset" result="highlight-blur" />
+                      <feOffset dx="-0.16" dy="-0.16" in="SourceAlpha" result="highlight-offset" />
+                      <feGaussianBlur stdDeviation="0.28" in="highlight-offset" result="highlight-blur" />
                       <feComposite operator="out" in="SourceGraphic" in2="highlight-blur" result="highlight-inverse" />
-                      <feFlood floodColor="#ffffff" floodOpacity="0.24" result="highlight-color" />
+                      <feFlood floodColor="#ffffff" floodOpacity="0.12" result="highlight-color" />
                       <feComposite operator="in" in="highlight-color" in2="highlight-inverse" result="highlight" />
                       <feMerge>
                         <feMergeNode in="shadow" />
@@ -205,8 +205,8 @@ export default async function HomePage() {
                   />
                   <path
                     fill="none"
-                    stroke="rgba(255,255,255,0.72)"
-                    strokeWidth="0.32"
+                    stroke="rgba(255,255,255,0.84)"
+                    strokeWidth="0.42"
                     d="M25.76,37.5c-1.966,0-2.26-2.192-2.26-3.5l0.004-0.818c0.021-3.23,0.053-8.113-1.77-9.947 C21.25,22.747,20.666,22.5,20,22.5s-1.25,0.247-1.734,0.734c-1.822,1.834-1.79,6.717-1.77,9.947L16.5,34 c0,1.308-0.294,3.5-2.261,3.5c-2.255,0-2.99-3.53-3.841-7.618c-0.275-1.323-0.561-2.691-0.916-4.012 c-0.552-2.004-1.488-3.874-2.394-5.683C5.758,17.528,4.5,15.016,4.5,12.286C4.5,5.701,7.843,2.5,14.72,2.5 c1.33,0,3.656,0.37,4.866,0.902l0.09,0.039c0,0,0.101,0.003,0.102,0.003c0.231,0,0.398-0.043,0.431-0.052 c0.04-0.012,3.036-0.893,4.698-0.893c3.438,0,6.238,0.996,8.101,2.879c1.663,1.682,2.524,4.068,2.492,6.901 c0,2.734-1.257,5.247-2.588,7.907c-0.905,1.809-1.842,3.679-2.394,5.68c-0.36,1.322-0.648,2.701-0.927,4.036 C28.774,33.81,28.004,37.5,25.76,37.5z"
                   />
                   <path
@@ -225,7 +225,7 @@ export default async function HomePage() {
                     alt="Tooth logo"
                     width={160}
                     height={160}
-                    className="mb-4 h-32 w-32 drop-shadow-[0_10px_14px_rgba(93,104,138,0.12)] sm:h-36 sm:w-36 lg:h-40 lg:w-40"
+                    className="mb-4 h-32 w-32 drop-shadow-[0_12px_18px_rgba(243,182,194,0.16)] sm:h-36 sm:w-36 lg:h-40 lg:w-40"
                   />
                   <h3 className="mb-1 text-lg font-extrabold tracking-[-0.02em] text-[#3a3f52] sm:text-xl">
                     drg. {doctorName}

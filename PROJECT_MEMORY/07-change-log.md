@@ -182,3 +182,9 @@
 - Memory files updated:
   - `04-ui-components.md`
   - `07-change-log.md`
+
+- Area: hero tooth strong raised pass and pastel logo
+- Change: increased the homepage tooth CTA raised shadow and border visibility and changed the shared tooth.svg asset to a pastel pink palette so the hero CTA now reads more obviously lifted and more color-consistent.
+- Memory files updated:
+  - `04-ui-components.md`
+  - `07-change-log.md`
