@@ -188,3 +188,9 @@
 - Memory files updated:
   - `04-ui-components.md`
   - `07-change-log.md`
+
+- Area: hero tooth maximum raised pass
+- Change: pushed the homepage tooth CTA much closer to a pure raised neumorphic surface by increasing outer shadow depth, reducing inset treatment, and recoloring the public tooth.svg logo to pastel pink.
+- Memory files updated:
+  - `04-ui-components.md`
+  - `07-change-log.md`
