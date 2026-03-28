@@ -329,3 +329,7 @@ Primary dashboard nav destinations:
 - homepage tooth CTA now uses a tighter raised shadow and shallower inset highlight, closer to the shared secondary button neumorphism depth
 - a thin white edge and softer sheen overlay keep the tooth surface readable without making it look like a separate decorative illustration style
 - the hero tooth now reads more like a premium raised neumorphism component with the same surface language as the rest of the UI
+### Hero Tooth Button-Depth Pass
+
+- homepage tooth CTA now uses a clearer outer raised shadow closer to the shared secondary button treatment, so the tooth reads more obviously as a lifted neumorphic component
+- the outline stroke is slightly stronger and the inner sheen is reduced, making the raised contour easier to see at a glance

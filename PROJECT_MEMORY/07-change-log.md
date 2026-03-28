@@ -176,3 +176,9 @@
 - Memory files updated:
   - `04-ui-components.md`
   - `07-change-log.md`
+
+- Area: hero tooth button-depth pass
+- Change: increased the homepage tooth CTA outer raised shadow and border emphasis so it reads closer to the shared secondary button neumorphism and is visually more obviously lifted.
+- Memory files updated:
+  - `04-ui-components.md`
+  - `07-change-log.md`
