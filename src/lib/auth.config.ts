@@ -1,5 +1,20 @@
 import type { NextAuthConfig } from "next-auth";
 
+const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+function getNextJakartaMidnightMs(fromMs: number = Date.now()): number {
+    const jakartaNow = new Date(fromMs + JAKARTA_OFFSET_MS);
+    return Date.UTC(
+        jakartaNow.getUTCFullYear(),
+        jakartaNow.getUTCMonth(),
+        jakartaNow.getUTCDate() + 1,
+        0,
+        0,
+        0,
+        0
+    ) - JAKARTA_OFFSET_MS;
+}
+
 export const authConfig = {
     pages: { signIn: "/login" },
     callbacks: {
@@ -8,16 +23,19 @@ export const authConfig = {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 token.role = (user as any).role;
                 token.id = user.id;
-                token.loginTime = Date.now();          // record login timestamp
+                token.loginTime = Date.now();
+                token.sessionExpiresAt = getNextJakartaMidnightMs();
             }
-            // Re-check expiry on every token refresh (trigger = "update" or undefined)
-            const SIX_HOURS = 6 * 60 * 60 * 1000;
-            if (token.loginTime && Date.now() - (token.loginTime as number) > SIX_HOURS) {
-                // Force sign-out by returning empty token
+
+            if (
+                token.sessionExpiresAt &&
+                Date.now() >= (token.sessionExpiresAt as number)
+            ) {
                 return {};
             }
+
             if (trigger === "update" && token.loginTime) {
-                // allow session refresh without resetting loginTime
+                // allow session refresh without resetting loginTime / expiry
             }
             return token;
         },
@@ -34,13 +52,15 @@ export const authConfig = {
                 (session.user as any).id = token.id;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (session.user as any).loginTime = token.loginTime;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (session.user as any).sessionExpiresAt = token.sessionExpiresAt;
             }
             return session;
         },
     },
     session: {
         strategy: "jwt",
-        maxAge: 6 * 60 * 60, // 6 hours in seconds
+        maxAge: 24 * 60 * 60,
     },
     secret: process.env.NEXTAUTH_SECRET,
     providers: [],

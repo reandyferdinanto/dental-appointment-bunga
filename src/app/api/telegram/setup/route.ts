@@ -10,12 +10,19 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { setWebhook, deleteWebhook } from "@/lib/telegram/api";
 
 const TOKEN  = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const BASE   = `https://api.telegram.org/bot${TOKEN}`;
 
 export async function GET(req: NextRequest) {
+  const session = await auth();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (role !== "superadmin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(req.url);
   const action = searchParams.get("action");
   const secret = searchParams.get("secret");

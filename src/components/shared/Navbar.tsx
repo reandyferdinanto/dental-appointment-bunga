@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { Menu, X, Sparkles, Calendar, Clock, Home } from "lucide-react";
 
 const navLinks = [
@@ -11,10 +12,24 @@ const navLinks = [
   { href: "/booking", label: "Booking", icon: Calendar },
 ];
 
+interface PublicSettings {
+  clinicName?: string;
+  doctorName?: string;
+}
+
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [publicSettings, setPublicSettings] = useState<PublicSettings>({});
   const pathname = usePathname();
   const menuRef = useRef<HTMLDivElement>(null);
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const isAdminLoggedIn = role === "admin" || role === "superadmin";
+  const roleLabel = role === "superadmin" ? "Super Admin" : role === "admin" ? "Admin" : "";
+  const doctorName = String(publicSettings.doctorName || "Bunga Maureen")
+    .replace(/^drg\.?\s*/i, "")
+    .trim() || "Bunga Maureen";
+  const clinicName = String(publicSettings.clinicName || "Healthcare SaaS");
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -30,6 +45,24 @@ export default function Navbar() {
     document.body.style.overflow = isOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setPublicSettings({
+          clinicName: data.clinicName,
+          doctorName: data.doctorName,
+        });
+      } catch {
+        // Keep defaults when settings API is unavailable.
+      }
+    }
+
+    void loadSettings();
+  }, []);
 
   return (
     <nav
@@ -58,8 +91,22 @@ export default function Navbar() {
               </div>
             </div>
             <div>
-              <span className="font-bold text-[#4e6785] text-sm leading-tight block">drg. Bunga Maureen</span>
-              <span className="text-[10px] text-[#E79191] font-semibold leading-tight">Healthcare SaaS</span>
+              <span className="font-bold text-[#4e6785] text-sm leading-tight block">{`drg. ${doctorName}`}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-[#E79191] font-semibold leading-tight">{clinicName}</span>
+                {isAdminLoggedIn && (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[9px] font-bold"
+                    style={{
+                      color: "#4e6785",
+                      background: "rgba(253,172,172,0.22)",
+                      border: "1px solid rgba(253,172,172,0.35)",
+                    }}
+                  >
+                    {roleLabel}
+                  </span>
+                )}
+              </div>
             </div>
           </Link>
 
@@ -85,10 +132,10 @@ export default function Navbar() {
               );
             })}
             <Link
-              href="/login"
+              href={isAdminLoggedIn ? "/dashboard" : "/login"}
               className="px-4 py-2 rounded-xl text-sm font-medium text-[#4e6785]/80 hover:text-[#4e6785] transition-all duration-200 btn-neu-secondary"
             >
-              Login
+              {isAdminLoggedIn ? "Dashboard" : "Login"}
             </Link>
             <Link
               href="/booking"
@@ -142,12 +189,12 @@ export default function Navbar() {
             );
           })}
           <Link
-            href="/login"
+            href={isAdminLoggedIn ? "/dashboard" : "/login"}
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-sm font-medium text-[#4e6785] transition-all tap-feedback"
           >
             <svg className="w-4 h-4 text-[#4e6785]/60" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
-            Login Dashboard
+            {isAdminLoggedIn ? "Dashboard Admin" : "Login Dashboard"}
           </Link>
           <Link
             href="/booking"

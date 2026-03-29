@@ -55,15 +55,15 @@ export default function DashboardLayout({
   const [expiryWarning, setExpiryWarning] = useState<number | null>(null);
 
   useEffect(() => {
-    const loginTime = (session?.user as { loginTime?: number } | undefined)
-      ?.loginTime;
-    if (!loginTime) return;
+    const sessionExpiresAt = (
+      session?.user as { sessionExpiresAt?: number } | undefined
+    )?.sessionExpiresAt;
+    if (!sessionExpiresAt) return;
 
-    const sixHours = 6 * 60 * 60 * 1000;
-    const warnAt = 15 * 60 * 1000;
+    const warnAt = 30 * 60 * 1000;
 
     const tick = () => {
-      const remaining = sixHours - (Date.now() - loginTime);
+      const remaining = sessionExpiresAt - Date.now();
 
       if (remaining <= 0) {
         void signOut({ callbackUrl: "/login?reason=session_expired" });
@@ -247,7 +247,7 @@ export default function DashboardLayout({
               }}
             >
               <Clock className="h-3.5 w-3.5 shrink-0" />
-              Sesi Anda akan berakhir dalam{" "}
+              Sesi admin akan berakhir dalam{" "}
               <strong>{expiryWarning} menit</strong>. Simpan pekerjaan Anda.
               <NeuButton
                 onClick={() => signOut({ callbackUrl: "/login" })}

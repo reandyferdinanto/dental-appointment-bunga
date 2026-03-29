@@ -7,10 +7,17 @@
  * Usage: visit /api/sync in the browser while logged in, or call it manually.
  */
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { gsheet } from "@/lib/gsheet";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 
 export async function GET() {
+    const session = await auth();
+    const role = (session?.user as { role?: string } | undefined)?.role;
+    if (role !== "superadmin") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     try {
         const db = await getDb();
         const results: Record<string, unknown> = {};

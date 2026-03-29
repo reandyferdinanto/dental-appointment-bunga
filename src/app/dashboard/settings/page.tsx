@@ -64,6 +64,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 export default function SettingsPage() {
   const { data: session } = useSession();
   const currentUserId = (session?.user as { id?: string } | undefined)?.id ?? "";
+  const currentUserRole = (session?.user as { role?: string } | undefined)?.role ?? "";
+  const isSuperadmin = currentUserRole === "superadmin";
 
   const [settings, setSettings] = useState<ClinicSettings>({
     clinicName: "", doctorName: "", phone: "", whatsapp: "",
@@ -110,7 +112,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/settings")
+    fetch("/api/settings", { cache: "no-store" })
       .then(r => r.json())
       .then(data => {
         // Normalize time fields in case Google Sheets returns ISO date strings
@@ -138,13 +140,14 @@ export default function SettingsPage() {
 
   // ── Admin helpers ──────────────────────────────────────────────────────────
   const fetchAdmins = useCallback(async () => {
+    if (!isSuperadmin) return;
     setAdminLoading(true);
     try {
       const res = await fetch("/api/admin");
       if (res.ok) setAdmins(await res.json());
     } catch { /* ignore */ }
     setAdminLoading(false);
-  }, []);
+  }, [isSuperadmin]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -326,6 +329,11 @@ export default function SettingsPage() {
               value={settings.instagramUrl} onChange={e => set("instagramUrl", e.target.value)}
               onFocus={focusStyle} onBlur={blurStyle} placeholder="https://instagram.com/username" />
           </Field>
+          <Field label="LINE ID">
+            <NeuInput
+              value={settings.lineId} onChange={e => set("lineId", e.target.value)}
+              onFocus={focusStyle} onBlur={blurStyle} placeholder="@username atau lineid" />
+          </Field>
         </div>
       </SectionCard>
 
@@ -417,7 +425,7 @@ export default function SettingsPage() {
       </SectionCard>
 
       {/* ── Admin Management ── */}
-      <SectionCard title="Manajemen Admin" icon={Shield}>
+      <SectionCard title={isSuperadmin ? "Manajemen Admin" : "Akun Admin"} icon={Shield}>
         {/* Feedback message */}
         {adminMsg && (
           <div className="chip-neu mb-4 px-4 py-3 rounded-2xl text-sm font-semibold" style={{ color: adminMsg.type === "ok" ? "#bb7f7f" : "#bb6868" }}>
@@ -463,108 +471,117 @@ export default function SettingsPage() {
           </NeuButton>
         </NeuCard>
 
-        {/* ── Admin List ── */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-sm text-[#3a3f52] flex items-center gap-2">
-              <User className="w-4 h-4" style={{ color: "#5D688A" }} />
-              Daftar Admin ({admins.length})
-            </h3>
-            <NeuButton onClick={() => setAddForm(p => ({ ...p, show: !p.show }))}
-              variant="primary" size="sm" className="hover:scale-[1.02]">
-              <UserPlus className="w-3.5 h-3.5" />
-              Tambah Admin
-            </NeuButton>
-          </div>
-
-          {adminLoading ? (
-            <div className="flex justify-center py-4">
-              <Loader2 className="w-5 h-5 animate-spin" style={{ color: "#FDACAC" }} />
-            </div>
-          ) : admins.length === 0 ? (
-            <p className="text-xs text-[#5D688A]/50 py-3 text-center">
-              Belum ada admin di database. Admin default dari environment variable masih aktif.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {admins.map(admin => (
-                <div key={admin.id} className="glass flex items-center gap-3 rounded-2xl px-4 py-3">
-                  <NeuIconTile className="h-8 w-8 rounded-xl">
-                    <User className="w-4 h-4" style={{ color: "#5D688A" }} />
-                  </NeuIconTile>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-[#3a3f52] truncate">{admin.name}</p>
-                    <p className="text-xs text-[#5D688A]/55 truncate">{admin.email}</p>
-                  </div>
-                  <NeuChip className="flex-shrink-0 px-2 py-1 text-[10px]" style={{ color: "#4e6785" }}>
-                    {admin.role}
-                  </NeuChip>
-                  {admin.id !== currentUserId && (
-                    <button onClick={() => handleDeleteAdmin(admin.id)}
-                      className="p-1.5 rounded-lg transition-all hover:bg-red-50 flex-shrink-0">
-                      <Trash2 className="w-3.5 h-3.5" style={{ color: "#FDACAC" }} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Add Admin Form ── */}
-        {addForm.show && (
-          <NeuCard inset className="space-y-3 rounded-2xl p-4">
-            <h4 className="font-bold text-sm text-[#3a3f52] flex items-center gap-2">
-              <UserPlus className="w-4 h-4" style={{ color: "#FEC3C3" }} />
-              Tambah Admin Baru
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <NeuInput placeholder="Nama Lengkap" value={addForm.name}
-                onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))}
-                onFocus={e => (e.currentTarget.style.borderColor = "#FEC3C3")}
-                onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.88)")}
-              />
-              <NeuInput type="email" placeholder="Email" value={addForm.email}
-                onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))}
-                onFocus={e => (e.currentTarget.style.borderColor = "#FEC3C3")}
-                onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.88)")}
-              />
-              <div className="relative">
-                <NeuInput type={addPwShow ? "text" : "password"} placeholder="Password (min. 6 karakter)"
-                  value={addForm.password}
-                  onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))}
-                  className="pr-10"
-                  onFocus={e => (e.currentTarget.style.borderColor = "#FEC3C3")}
-                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.88)")}
-                />
-                <button type="button" onClick={() => setAddPwShow(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5D688A]/50 hover:text-[#5D688A]">
-                  {addPwShow ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+        {isSuperadmin ? (
+          <>
+            {/* ── Admin List ── */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-sm text-[#3a3f52] flex items-center gap-2">
+                  <User className="w-4 h-4" style={{ color: "#5D688A" }} />
+                  Daftar Admin ({admins.length})
+                </h3>
+                <NeuButton onClick={() => setAddForm(p => ({ ...p, show: !p.show }))}
+                  variant="primary" size="sm" className="hover:scale-[1.02]">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  Tambah Admin
+                </NeuButton>
               </div>
-              <NeuSelect value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}>
-                <option value="admin">Admin</option>
-                <option value="superadmin">Super Admin</option>
-              </NeuSelect>
+
+              {adminLoading ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="w-5 h-5 animate-spin" style={{ color: "#FDACAC" }} />
+                </div>
+              ) : admins.length === 0 ? (
+                <p className="text-xs text-[#5D688A]/50 py-3 text-center">
+                  Belum ada admin di database. Admin default dari environment variable masih aktif.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {admins.map(admin => (
+                    <div key={admin.id} className="glass flex items-center gap-3 rounded-2xl px-4 py-3">
+                      <NeuIconTile className="h-8 w-8 rounded-xl">
+                        <User className="w-4 h-4" style={{ color: "#5D688A" }} />
+                      </NeuIconTile>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm text-[#3a3f52] truncate">{admin.name}</p>
+                        <p className="text-xs text-[#5D688A]/55 truncate">{admin.email}</p>
+                      </div>
+                      <NeuChip className="flex-shrink-0 px-2 py-1 text-[10px]" style={{ color: "#4e6785" }}>
+                        {admin.role}
+                      </NeuChip>
+                      {admin.id !== currentUserId && (
+                        <button onClick={() => handleDeleteAdmin(admin.id)}
+                          className="p-1.5 rounded-lg transition-all hover:bg-red-50 flex-shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" style={{ color: "#FDACAC" }} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="flex gap-2">
-              <NeuButton onClick={() => setAddForm(p => ({ ...p, show: false }))}
-                variant="secondary" size="md">
-                Batal
-              </NeuButton>
-              <NeuButton onClick={handleAddAdmin} disabled={addForm.saving}
-                variant="primary" size="md" className="hover:scale-[1.02]">
-                {addForm.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                Tambah Admin
-              </NeuButton>
-            </div>
-          </NeuCard>
+
+            {/* ── Add Admin Form ── */}
+            {addForm.show && (
+              <NeuCard inset className="space-y-3 rounded-2xl p-4">
+                <h4 className="font-bold text-sm text-[#3a3f52] flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" style={{ color: "#FEC3C3" }} />
+                  Tambah Admin Baru
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <NeuInput placeholder="Nama Lengkap" value={addForm.name}
+                    onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))}
+                    onFocus={e => (e.currentTarget.style.borderColor = "#FEC3C3")}
+                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.88)")}
+                  />
+                  <NeuInput type="email" placeholder="Email" value={addForm.email}
+                    onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))}
+                    onFocus={e => (e.currentTarget.style.borderColor = "#FEC3C3")}
+                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.88)")}
+                  />
+                  <div className="relative">
+                    <NeuInput type={addPwShow ? "text" : "password"} placeholder="Password (min. 6 karakter)"
+                      value={addForm.password}
+                      onChange={e => setAddForm(p => ({ ...p, password: e.target.value }))}
+                      className="pr-10"
+                      onFocus={e => (e.currentTarget.style.borderColor = "#FEC3C3")}
+                      onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.88)")}
+                    />
+                    <button type="button" onClick={() => setAddPwShow(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#5D688A]/50 hover:text-[#5D688A]">
+                      {addPwShow ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <NeuSelect value={addForm.role} onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}>
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Super Admin</option>
+                  </NeuSelect>
+                </div>
+                <div className="flex gap-2">
+                  <NeuButton onClick={() => setAddForm(p => ({ ...p, show: false }))}
+                    variant="secondary" size="md">
+                    Batal
+                  </NeuButton>
+                  <NeuButton onClick={handleAddAdmin} disabled={addForm.saving}
+                    variant="primary" size="md" className="hover:scale-[1.02]">
+                    {addForm.saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                    Tambah Admin
+                  </NeuButton>
+                </div>
+              </NeuCard>
+            )}
+          </>
+        ) : (
+          <NeuAlert tone="secondary" className="mb-4 flex items-start gap-2 text-xs">
+            <Shield className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+            <span>Akun Anda bertipe <strong>admin</strong>. Manajemen admin hanya tersedia untuk <strong>superadmin</strong>.</span>
+          </NeuAlert>
         )}
 
         {/* Session info */}
         <NeuAlert tone="secondary" className="mt-4 flex items-start gap-2 text-xs">
           <Shield className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-          <span>Sesi login otomatis berakhir setelah <strong>6 jam</strong>. Setelah itu Anda perlu login ulang.</span>
+          <span>Sesi login aktif sampai <strong>00.00 WIB</strong>. Setelah hari berganti, Anda perlu login ulang.</span>
         </NeuAlert>
       </SectionCard>
 

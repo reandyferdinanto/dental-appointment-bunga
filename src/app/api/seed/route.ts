@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { gsheet } from "@/lib/gsheet";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 
 export async function POST() {
+  const session = await auth();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (role !== "superadmin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   if (process.env.NODE_ENV === "production" && !process.env.ALLOW_SEED) {
     return NextResponse.json({ error: "Not allowed in production. Set ALLOW_SEED=1 to enable." }, { status: 403 });
   }

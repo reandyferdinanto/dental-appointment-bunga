@@ -86,7 +86,7 @@ export default function LoginPage() {
           {sessionExpired && (
             <NeuAlert className="mb-4 flex items-center gap-2 text-center font-medium" tone="secondary">
               <Clock className="w-4 h-4 shrink-0" />
-              Sesi Anda telah berakhir (6 jam). Silakan login kembali.
+              Sesi admin Anda telah berakhir karena hari berganti. Silakan login kembali.
             </NeuAlert>
           )}
 
@@ -144,7 +144,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-[#5D688A]/50 mt-6">
-            Dashboard ini hanya untuk dokter gigi yang berwenang.
+            Dashboard ini hanya untuk dokter gigi yang berwenang. Sesi login aktif sampai pukul 00.00 WIB.
           </p>
         </NeuCard>
       </div>

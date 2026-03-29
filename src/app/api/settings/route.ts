@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { gsheet } from "@/lib/gsheet";
+import { auth } from "@/lib/auth";
 
 /**
  * Google Sheets stores time values as Date objects serialized to ISO strings
@@ -47,19 +48,30 @@ export async function GET() {
     const db = await getDb();
     const data = await db.collection(COLLECTIONS.settings).findOne({ _id: "main" as unknown as import("mongodb").ObjectId });
     if (!data) {
-      return NextResponse.json(getDefaultSettings());
+      return NextResponse.json(getDefaultSettings(), {
+        headers: { "Cache-Control": "no-store" },
+      });
     }
     const { _id, ...rest } = data;
     void _id;
-    return NextResponse.json(normalizeSettings(rest as Record<string, unknown>));
+    return NextResponse.json(normalizeSettings(rest as Record<string, unknown>), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch {
-    return NextResponse.json(getDefaultSettings());
+    return NextResponse.json(getDefaultSettings(), {
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 }
 
 // ── POST: Write to MongoDB + Google Sheets (backup) ─────────────────────────
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
 
     // Sanitize: ensure time fields are plain HH:mm strings

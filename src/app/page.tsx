@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 
+export const dynamic = "force-dynamic";
+
 // Static fallback data
 const defaultServices = [
   { icon: SmilePlus, title: "Penambalan Gigi", desc: "Restorasi gigi berlubang dengan bahan komposit berkualitas tinggi.", color: "#FDACAC" },

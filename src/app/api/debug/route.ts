@@ -3,9 +3,16 @@
  * Returns current env var status and tests both GSheet and MongoDB connections.
  */
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 
 export async function GET() {
+  const session = await auth();
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  if (role !== "superadmin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const apiUrl = process.env.GSHEET_API_URL ?? "";
   const secret = process.env.GSHEET_SECRET ?? "";
   const mongoUri = process.env.MONGODB_URI ?? "";

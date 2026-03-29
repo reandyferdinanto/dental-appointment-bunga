@@ -1,7 +1,64 @@
-﻿import Link from "next/link";
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
+interface PublicSettings {
+  clinicName: string;
+  doctorName: string;
+  address: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  workHourStart: string;
+  workHourEnd: string;
+  instagramUrl: string;
+  lineId: string;
+}
+
+const defaultSettings: PublicSettings = {
+  clinicName: "drg. Bunga Maureen",
+  doctorName: "Bunga Maureen",
+  address: "Klinik Gigi Universitas Trisakti",
+  phone: "+62 812-xxxx-xxxx",
+  whatsapp: "",
+  email: "bunga@dentist.com",
+  workHourStart: "08:00",
+  workHourEnd: "16:00",
+  instagramUrl: "",
+  lineId: "",
+};
+
 export default function Footer() {
+  const [settings, setSettings] = useState<PublicSettings>(defaultSettings);
+
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setSettings({
+          clinicName: String(data.clinicName || defaultSettings.clinicName),
+          doctorName: String(data.doctorName || defaultSettings.doctorName),
+          address: String(data.address || defaultSettings.address),
+          phone: String(data.phone || defaultSettings.phone),
+          whatsapp: String(data.whatsapp || defaultSettings.whatsapp),
+          email: String(data.email || defaultSettings.email),
+          workHourStart: String(data.workHourStart || defaultSettings.workHourStart),
+          workHourEnd: String(data.workHourEnd || defaultSettings.workHourEnd),
+          instagramUrl: String(data.instagramUrl || defaultSettings.instagramUrl),
+          lineId: String(data.lineId || defaultSettings.lineId),
+        });
+      } catch {
+        // Keep defaults when settings API is unavailable.
+      }
+    }
+
+    void loadSettings();
+  }, []);
+
   return (
     <footer className="mt-10" style={{ background: "#e6e7ee" }}>
       <div
@@ -51,10 +108,10 @@ export default function Footer() {
                 </div>
                 <div>
                   <span className="block text-sm font-bold text-[#2c3d52]">
-                    drg. Bunga Maureen
+                    {settings.clinicName}
                   </span>
                   <span className="text-[10px] font-semibold text-[#E79191]">
-                    Healthcare SaaS
+                    {`drg. ${String(settings.doctorName).replace(/^drg\.?\s*/i, "").trim() || "Bunga Maureen"}`}
                   </span>
                 </div>
               </div>
@@ -105,10 +162,13 @@ export default function Footer() {
               </h3>
               <div className="space-y-3">
                 {[
-                  { Icon: MapPin, text: "Klinik Gigi Universitas Trisakti" },
-                  { Icon: Phone, text: "+62 812-xxxx-xxxx" },
-                  { Icon: Mail, text: "bunga@dentist.com" },
-                  { Icon: Clock, text: "Senin - Sabtu, 08:00 - 16:00" },
+                  { Icon: MapPin, text: settings.address },
+                  { Icon: Phone, text: settings.phone },
+                  ...(settings.whatsapp ? [{ Icon: Phone, text: `WhatsApp: ${settings.whatsapp}` }] : []),
+                  { Icon: Mail, text: settings.email },
+                  { Icon: Clock, text: `Senin - Sabtu, ${settings.workHourStart} - ${settings.workHourEnd}` },
+                  ...(settings.instagramUrl ? [{ Icon: Mail, text: `Instagram: ${settings.instagramUrl}` }] : []),
+                  ...(settings.lineId ? [{ Icon: Mail, text: `LINE: ${settings.lineId}` }] : []),
                 ].map(({ Icon, text }) => (
                   <div
                     key={text}

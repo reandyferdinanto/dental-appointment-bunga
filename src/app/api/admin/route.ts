@@ -3,10 +3,17 @@ import { auth, hashPassword } from "@/lib/auth";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { gsheet } from "@/lib/gsheet";
 
+function getSessionRole(session: Awaited<ReturnType<typeof auth>>) {
+  return (session?.user as { role?: string } | undefined)?.role;
+}
+
 // GET — list all admins (names + emails only, no hashes) from MongoDB
 export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (getSessionRole(session) !== "superadmin") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   try {
     const db = await getDb();
@@ -23,6 +30,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const role = getSessionRole(session);
+  const currentUserId = (session.user as { id?: string } | undefined)?.id ?? "";
 
   const body = await req.json();
   const { action } = body;
@@ -31,6 +40,9 @@ export async function POST(req: NextRequest) {
 
   // ── Add new admin ───────────────────────────────────────────────────────────
   if (action === "add") {
+    if (role !== "superadmin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { name, email, password, role = "admin" } = body;
     if (!name || !email || !password) {
       return NextResponse.json({ error: "name, email, dan password wajib diisi" }, { status: 400 });
@@ -55,6 +67,9 @@ export async function POST(req: NextRequest) {
     if (!id || !newPassword) {
       return NextResponse.json({ error: "id dan newPassword wajib diisi" }, { status: 400 });
     }
+    if (role !== "superadmin" && id !== currentUserId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     if (newPassword.length < 6) {
       return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
     }
@@ -71,6 +86,9 @@ export async function POST(req: NextRequest) {
 
   // ── Update name/email ───────────────────────────────────────────────────────
   if (action === "update") {
+    if (role !== "superadmin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { id, name, email } = body;
     if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
 
@@ -90,6 +108,9 @@ export async function POST(req: NextRequest) {
 
   // ── Delete admin ────────────────────────────────────────────────────────────
   if (action === "delete") {
+    if (role !== "superadmin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const { id } = body;
     if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
 
