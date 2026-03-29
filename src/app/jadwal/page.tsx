@@ -5,7 +5,7 @@ import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import Link from "next/link";
 import TeethLoader from "@/components/ui/TeethLoader";
-import { ChevronLeft, ChevronRight, Clock, CalendarDays, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Calendar } from "lucide-react";
 import { NeuButton, NeuCard, NeuChip } from "@/components/ui/neumorphism";
 
 interface Schedule {
@@ -79,45 +79,42 @@ export default function JadwalPage() {
 
       <main className="flex-1 py-6 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
           <div className="text-center mb-6 sm:mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold chip-neu mb-4"
-              style={{ color: "#4e6785" }}>
-              <CalendarDays className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(253,172,172,0.45)] bg-white/50 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5D688A] shadow-[8px_8px_18px_rgba(163,177,198,0.12),-8px_-8px_18px_rgba(255,255,255,0.8)] mb-4">
+              <span className="h-2 w-2 rounded-full bg-[#FDACAC] animate-pulse-soft" />
               Jadwal Praktik
             </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-[#3a3f52]">
-              Jadwal Praktik Mingguan
+            <h1 className="text-[2.1rem] sm:text-[3rem] font-extrabold tracking-[-0.04em] text-[#3a3f52]">
+              Jadwal <span className="gradient-text">Praktik Mingguan</span>
             </h1>
             <p className="mt-2 text-sm sm:text-base text-[#5D688A]/65">
-              Lihat ketersediaan jadwal drg. Bunga Maureen
+              Lihat ketersediaan jadwal drg. Bunga Maureen sebelum membuat booking.
             </p>
           </div>
 
-          {/* Week Navigation */}
-          <NeuCard className="mb-5 flex items-center justify-between rounded-2xl p-3 sm:p-4">
-            <NeuButton onClick={prevWeek}
-              size="sm" className="rounded-xl px-2.5 py-2.5 text-[#4e6785] tap-feedback">
-              <ChevronLeft className="w-5 h-5" />
-            </NeuButton>
-            <div className="text-center">
-              <h2 className="font-bold text-[#3a3f52] text-sm sm:text-base">
-                {weekStart.getDate()} {monthNames[weekStart.getMonth()]} - {weekEnd.getDate()} {monthNames[weekEnd.getMonth()]}
-              </h2>
-              <p className="text-xs text-[#5D688A]/50">{weekEnd.getFullYear()}</p>
+          <NeuCard className="mb-6 rounded-[2rem] border border-white/55 bg-white/40 p-3 shadow-[14px_14px_28px_rgba(163,177,198,0.14),-12px_-12px_24px_rgba(255,255,255,0.78)] backdrop-blur-xl sm:p-4">
+            <div className="flex items-center justify-between">
+              <NeuButton onClick={prevWeek}
+                size="sm" className="rounded-xl px-2.5 py-2.5 text-[#4e6785] tap-feedback">
+                <ChevronLeft className="w-5 h-5" />
+              </NeuButton>
+              <div className="text-center">
+                <h2 className="font-bold text-[#3a3f52] text-sm sm:text-base">
+                  {weekStart.getDate()} {monthNames[weekStart.getMonth()]} - {weekEnd.getDate()} {monthNames[weekEnd.getMonth()]}
+                </h2>
+                <p className="text-xs text-[#5D688A]/50">{weekEnd.getFullYear()}</p>
+              </div>
+              <NeuButton onClick={nextWeek}
+                size="sm" className="rounded-xl px-2.5 py-2.5 text-[#4e6785] tap-feedback">
+                <ChevronRight className="w-5 h-5" />
+              </NeuButton>
             </div>
-            <NeuButton onClick={nextWeek}
-              size="sm" className="rounded-xl px-2.5 py-2.5 text-[#4e6785] tap-feedback">
-              <ChevronRight className="w-5 h-5" />
-            </NeuButton>
           </NeuCard>
 
-          {/* Schedule Grid */}
           {loading ? (
             <TeethLoader message="Tunggu yaa, kami cek terlebih dahulu" />
           ) : (
             <>
-              {/* Mobile: scrollable horizontal row */}
               <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory sm:hidden" style={{ scrollbarWidth: "none" }}>
                 {schedules.map((schedule, idx) => {
                   const d = new Date(weekStart);
@@ -167,7 +164,6 @@ export default function JadwalPage() {
                 })}
               </div>
 
-              {/* Desktop: grid */}
               <div className="hidden sm:grid sm:grid-cols-4 lg:grid-cols-7 gap-3">
                 {schedules.map((schedule, idx) => {
                   const d = new Date(weekStart);
@@ -219,16 +215,15 @@ export default function JadwalPage() {
             </>
           )}
 
-          {/* Info + CTA */}
-          <div className="mt-6 space-y-3">
-            <NeuCard inset className="rounded-2xl p-4">
+          <div className="mt-8 space-y-3">
+            <NeuCard inset className="rounded-[1.8rem] border border-white/50 bg-white/30 p-4">
               <p className="text-sm text-[#4e6785]">
                 <strong>Tips:</strong> Slot yang ditampilkan adalah waktu yang masih tersedia.
                 Segera lakukan booking sebelum slot diambil pasien lain!
               </p>
             </NeuCard>
             <Link href="/booking"
-              className="btn-neu-primary flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-sm text-white transition-all active:scale-95 tap-feedback">
+              className="btn-neu-primary flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-bold text-sm text-white transition-all hover:scale-[1.01] active:scale-95 tap-feedback">
               <Calendar className="w-4 h-4" />
               Buat Janji Sekarang
             </Link>
@@ -240,5 +235,4 @@ export default function JadwalPage() {
     </div>
   );
 }
-
 

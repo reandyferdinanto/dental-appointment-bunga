@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -32,6 +32,7 @@ const STEPS = [
     color: "#ef4444",
     bg: "#eef0f6",
     image: "/images/simulasi/step-0-cavity.png",
+    stageTitle: "Area karies terlihat jelas",
   },
   {
     id: 1,
@@ -43,6 +44,7 @@ const STEPS = [
     color: "#3b82f6",
     bg: "#eef0f6",
     image: "/images/simulasi/step-1-examination.png",
+    stageTitle: "Pemeriksaan kedalaman kerusakan",
   },
   {
     id: 2,
@@ -54,6 +56,7 @@ const STEPS = [
     color: "#8b5cf6",
     bg: "#eef0f6",
     image: "/images/simulasi/step-2-anesthesia.png",
+    stageTitle: "Persiapan area sebelum tindakan",
   },
   {
     id: 3,
@@ -65,6 +68,7 @@ const STEPS = [
     color: "#f59e0b",
     bg: "#eef0f6",
     image: "/images/simulasi/step-3-drilling.png",
+    stageTitle: "Jaringan yang rusak dibersihkan",
   },
   {
     id: 4,
@@ -76,6 +80,7 @@ const STEPS = [
     color: "#10b981",
     bg: "#eef0f6",
     image: "/images/simulasi/step-4-filling.png",
+    stageTitle: "Lapisan tambalan dibentuk bertahap",
   },
   {
     id: 5,
@@ -87,8 +92,57 @@ const STEPS = [
     color: "#06b6d4",
     bg: "#eef0f6",
     image: "/images/simulasi/step-5-polished.png",
+    stageTitle: "Hasil akhir tampak lebih rapi",
   },
 ] as const;
+
+function StepPill({
+  item,
+  index,
+  active,
+  onClick,
+}: {
+  item: (typeof STEPS)[number];
+  index: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
+      aria-label={`Step ${index + 1}: ${item.title}`}
+    >
+      <div
+        className="rounded-[1.4rem] border px-3 py-3 transition-all duration-300"
+        style={{
+          background: active ? "rgba(255,255,255,0.62)" : "rgba(255,255,255,0.34)",
+          borderColor: active ? `${item.color}44` : "rgba(255,255,255,0.42)",
+          boxShadow: active
+            ? "12px 12px 24px rgba(163,177,198,0.14), -10px -10px 20px rgba(255,255,255,0.78)"
+            : "inset 1px 1px 0 rgba(255,255,255,0.3)",
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold text-white shadow-[6px_6px_14px_rgba(163,177,198,0.14),-5px_-5px_12px_rgba(255,255,255,0.6)]"
+            style={{ background: active ? item.color : "#94a3b8" }}
+          >
+            {index + 1}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8a8fa8]">
+              {item.subtitle}
+            </p>
+            <p className="mt-1 text-sm font-bold leading-tight text-[#3a3f52]">
+              {item.title}
+            </p>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
 
 export default function SimulasiPage() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -96,6 +150,15 @@ export default function SimulasiPage() {
   const [showInfo, setShowInfo] = useState(false);
 
   const step = STEPS[currentStep];
+  const progressWidth = `${((currentStep + 1) / STEPS.length) * 100}%`;
+
+  const stageGradient = useMemo(
+    () => ({
+      background: `radial-gradient(circle at 50% 18%, ${step.color}20 0%, rgba(255,255,255,0.38) 36%, rgba(238,240,246,0.98) 100%)`,
+      borderColor: `${step.color}22`,
+    }),
+    [step.color],
+  );
 
   const goNext = useCallback(() => {
     setCurrentStep((prev) => (prev < STEPS.length - 1 ? prev + 1 : 0));
@@ -146,18 +209,18 @@ export default function SimulasiPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-mesh">
-      <div className="pointer-events-none absolute left-0 top-0 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full blob-pink mix-blend-multiply" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 translate-x-1/3 translate-y-1/3 rounded-full blob-peach mix-blend-multiply" />
-      <div className="pointer-events-none absolute right-0 top-1/2 h-64 w-64 translate-x-1/2 rounded-full blob-navy mix-blend-multiply" />
+      <div className="pointer-events-none absolute left-0 top-0 h-96 w-96 -translate-x-1/3 -translate-y-1/3 rounded-full blob-pink mix-blend-multiply" />
+      <div className="pointer-events-none absolute bottom-0 right-0 h-[28rem] w-[28rem] translate-x-1/4 translate-y-1/4 rounded-full blob-peach mix-blend-multiply" />
+      <div className="pointer-events-none absolute right-0 top-1/3 h-72 w-72 translate-x-1/2 rounded-full blob-navy mix-blend-multiply" />
 
-      <header className="relative z-10 px-4 pb-2 pt-4 sm:px-6 sm:pt-6 lg:px-8">
-        <div className="mx-auto flex max-w-2xl items-center justify-between">
+      <header className="relative z-10 px-4 pb-4 pt-5 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
           <Link
             href="/"
             className="flex items-center gap-2 text-sm font-semibold text-[#5D688A] transition-colors hover:text-[#3a3f52] tap-feedback"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Kembali</span>
+            <span>Kembali</span>
           </Link>
           <NeuButton
             onClick={() => setShowInfo((prev) => !prev)}
@@ -204,13 +267,10 @@ export default function SimulasiPage() {
                   </button>
                 </div>
                 <p className="text-xs leading-relaxed text-[#5D688A]">
-                  <strong>Penambalan gigi</strong> adalah tindakan umum untuk
-                  memperbaiki gigi berlubang. Simulasi ini membantu pasien
-                  memahami setiap tahap sebelum perawatan dilakukan.
+                  <strong>Penambalan gigi</strong> adalah tindakan umum untuk memperbaiki gigi berlubang. Simulasi ini membantu pasien memahami setiap tahap sebelum perawatan dilakukan.
                 </p>
                 <NeuChip className="mt-4 w-full justify-center rounded-2xl px-3 py-2 text-[11px] font-semibold text-[#5D688A]">
-                  Gunakan tombol navigasi atau keyboard kiri dan kanan. Tekan
-                  play untuk auto-play.
+                  Gunakan tombol navigasi atau keyboard kiri dan kanan. Tekan play untuk auto-play.
                 </NeuChip>
               </NeuCard>
             </motion.div>
@@ -218,261 +278,303 @@ export default function SimulasiPage() {
         ) : null}
       </AnimatePresence>
 
-      <section
-        className="relative z-10 flex flex-col"
-        style={{ minHeight: "100dvh" }}
-      >
-        <motion.div
-          className="px-4 pb-1 pt-1 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h1 className="text-lg font-extrabold text-[#3a3f52] sm:text-2xl lg:text-3xl">
-            Simulasi <span className="gradient-text">Penambalan Gigi</span>
-          </h1>
-          <p className="mt-0.5 text-[10px] text-[#8a8fa8] sm:text-xs">
-            Pahami langkah prosedur secara interaktif sebelum perawatan.
-          </p>
-        </motion.div>
-
-        <div className="mx-auto mb-1.5 w-full max-w-2xl px-4 sm:px-8">
-          <div className="mb-1 flex items-center justify-between">
-            <motion.span
-              key={step.id}
-              className="text-[10px] font-bold uppercase tracking-widest sm:text-xs"
-              style={{ color: step.color }}
-              initial={{ opacity: 0, x: -10 }}
+      <main className="relative z-10 px-4 pb-8 sm:px-6 lg:px-8 lg:pb-10">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.84fr)_minmax(0,1.16fr)] lg:gap-8">
+            <motion.section
+              initial={{ opacity: 0, x: -18 }}
               animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="order-2 lg:order-1"
             >
-              {step.subtitle}
-            </motion.span>
-            <span className="text-[10px] font-medium text-[#8a8fa8] sm:text-xs">
-              {currentStep + 1} / {STEPS.length}
-            </span>
-          </div>
-          <div className="overflow-hidden rounded-full bg-[#5D688A]/10">
-            <motion.div
-              className="h-1.5 rounded-full"
-              style={{ background: step.color }}
-              initial={false}
-              animate={{ width: `${((currentStep + 1) / STEPS.length) * 100}%` }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center px-4 py-1 sm:px-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, scale: 0.9, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: -10 }}
-              transition={{ duration: 0.45, ease: "easeOut" }}
-              className="relative overflow-hidden rounded-2xl sm:rounded-3xl"
-              style={{
-                background: step.bg,
-                border: "1px solid rgba(255,255,255,0.52)",
-                boxShadow: "8px 8px 16px rgba(163,177,198,0.2), -8px -8px 16px rgba(255,255,255,0.56)",
-                width: "min(75vw, 360px)",
-                aspectRatio: "1 / 1",
-                maxHeight: "38vh",
-              }}
-            >
-              <Image
-                src={step.image}
-                alt={step.title}
-                fill
-                className="object-contain p-2 sm:p-3"
-                sizes="(max-width: 640px) 75vw, 360px"
-                priority
-              />
-
-              <motion.div
-                className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-extrabold text-white sm:left-3 sm:top-3 sm:h-9 sm:w-9 sm:rounded-xl sm:text-sm"
-                style={{
-                  background: "#4e6785",
-                  boxShadow: "4px 4px 8px rgba(137,150,166,0.24), -4px -4px 8px rgba(255,255,255,0.18)",
-                }}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring" }}
-              >
-                {currentStep === 0 ? "!" : currentStep}
-              </motion.div>
-
-              {currentStep === STEPS.length - 1 ? (
-                <motion.div
-                  className="absolute right-2 top-2 rounded-lg px-2 py-0.5 text-[9px] font-bold text-[#4e6785] sm:right-3 sm:top-3 sm:rounded-xl sm:px-2.5 sm:py-1 sm:text-xs chip-neu"
-                  initial={{ scale: 0, rotate: -10 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ delay: 0.4, type: "spring" }}
-                >
-                  Selesai
-                </motion.div>
-              ) : null}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        <div className="mx-auto w-full max-w-2xl px-4 py-2 sm:px-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStep}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-            >
-              <NeuCard className="space-y-2 rounded-[28px] p-3 sm:p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-bold text-[#3a3f52] sm:text-base lg:text-lg">
-                    {step.title}
-                  </h2>
-                  <NeuChip
-                    className="px-3 py-1 text-[10px] uppercase tracking-[0.2em]"
-                    style={{ color: step.color }}
-                  >
-                    {step.subtitle}
-                  </NeuChip>
+              <div className="max-w-lg">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(253,172,172,0.45)] bg-white/50 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5D688A] shadow-[8px_8px_18px_rgba(163,177,198,0.12),-8px_-8px_18px_rgba(255,255,255,0.8)]">
+                  <span className="h-2 w-2 rounded-full bg-[#FDACAC] animate-pulse-soft" />
+                  Simulasi Interaktif
                 </div>
-                <p className="text-[11px] leading-relaxed text-[#5D688A]/80 sm:text-xs">
-                  {step.description}
+                <h1 className="mt-4 max-w-[11ch] text-[2.2rem] font-extrabold leading-[0.94] tracking-[-0.05em] text-[#3a3f52] sm:text-[2.8rem] lg:text-[3.35rem]">
+                  Simulasi <span className="gradient-text">Penambalan Gigi</span>
+                </h1>
+                <p className="mt-3 max-w-[32rem] text-sm leading-7 text-[#5D688A]/78 sm:text-[15px]">
+                  Pelajari alur perawatan dari kondisi awal sampai hasil akhir dengan tampilan visual yang lebih jelas dan kontrol yang mudah diikuti.
                 </p>
-                <div
-                  className="neu-inset flex items-start gap-2 rounded-2xl px-3 py-2 text-[10px] text-[#4e6785] sm:text-[11px]"
-                  style={{ borderColor: "rgba(255,255,255,0.42)" }}
-                >
-                  <span className="shrink-0 font-semibold">Tip</span>
-                  <span className="leading-relaxed">{step.tip}</span>
+              </div>
+
+              <div className="mt-6 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#8a8fa8]">
+                    Progress
+                  </p>
+                  <p className="mt-1 text-sm font-bold text-[#3a3f52]">
+                    {currentStep + 1} dari {STEPS.length} langkah
+                  </p>
                 </div>
-              </NeuCard>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+                <NeuChip
+                  className="rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.2em] border bg-white/45 shadow-[6px_6px_14px_rgba(163,177,198,0.1),-6px_-6px_14px_rgba(255,255,255,0.66)]"
+                  style={{ color: step.color }}
+                >
+                  {step.subtitle}
+                </NeuChip>
+              </div>
 
-        <div className="px-4 py-2 sm:py-3">
-          <div className="mb-2 flex items-center justify-center gap-1.5 sm:gap-2">
-            {STEPS.map((item, index) => (
-              <button
-                key={item.id}
-                onClick={() => setCurrentStep(index)}
-                className="transition-all duration-300 tap-feedback"
-                aria-label={`Step ${index + 1}: ${item.title}`}
-              >
+              <div className="mt-3 overflow-hidden rounded-full bg-[#5D688A]/10">
                 <motion.div
-                  className="rounded-full"
+                  className="h-1.5 rounded-full"
+                  style={{ background: step.color }}
                   initial={false}
-                  animate={{
-                    width: index === currentStep ? 24 : 8,
-                    height: 8,
-                    backgroundColor:
-                      index === currentStep
-                        ? step.color
-                        : index < currentStep
-                          ? `${step.color}60`
-                          : "#D4C7B8",
-                  }}
-                  transition={{ duration: 0.3 }}
+                  animate={{ width: progressWidth }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
                 />
-              </button>
-            ))}
-          </div>
+              </div>
 
-          <div className="flex items-center justify-center gap-2 sm:gap-3">
-            <NeuButton
-              onClick={reset}
-              size="sm"
-              className="rounded-2xl px-3 py-2 sm:px-4"
-              aria-label="Reset"
-            >
-              <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5" />
-            </NeuButton>
-            <NeuButton
-              onClick={goPrev}
-              size="sm"
-              className="rounded-2xl px-3 py-2 sm:px-4"
-              aria-label="Sebelumnya"
-            >
-              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
-            </NeuButton>
-            <NeuButton
-              onClick={() => setIsPlaying((prev) => !prev)}
-              variant="primary"
-              size="md"
-              className="rounded-2xl px-4 py-3 text-white"
-              aria-label={isPlaying ? "Pause" : "Play"}
-            >
-              {isPlaying ? (
-                <Pause className="h-5 w-5 sm:h-6 sm:w-6" />
-              ) : (
-                <Play className="h-5 w-5 sm:h-6 sm:w-6" />
-              )}
-            </NeuButton>
-            <NeuButton
-              onClick={goNext}
-              size="sm"
-              className="rounded-2xl px-3 py-2 sm:px-4"
-              aria-label="Selanjutnya"
-            >
-              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
-            </NeuButton>
-            <div className="w-8 sm:w-10" />
-          </div>
-        </div>
-      </section>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.28 }}
+                  className="mt-5"
+                >
+                  <NeuCard className="rounded-[2rem] border border-white/55 bg-white/38 p-5 shadow-[14px_14px_28px_rgba(163,177,198,0.14),-12px_-12px_24px_rgba(255,255,255,0.78)] backdrop-blur-xl sm:p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8a8fa8]">
+                          Langkah Aktif
+                        </p>
+                        <h2 className="mt-1 text-xl font-extrabold tracking-[-0.03em] text-[#3a3f52] sm:text-2xl">
+                          {step.title}
+                        </h2>
+                      </div>
+                      <div
+                        className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]"
+                        style={{
+                          color: step.color,
+                          background: `${step.color}14`,
+                          border: `1px solid ${step.color}22`,
+                        }}
+                      >
+                        {step.subtitle}
+                      </div>
+                    </div>
 
-      <main className="relative z-10 px-4 pb-6 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl">
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {STEPS.map((item, index) => (
-              <motion.button
-                key={item.id}
-                onClick={() => setCurrentStep(index)}
-                className="overflow-hidden rounded-2xl"
-                style={{
-                  borderColor: index === currentStep ? item.color : "transparent",
-                  borderWidth: "2px",
-                }}
-                whileTap={{ scale: 0.96 }}
-              >
-                <NeuCard className="neu-card-hover rounded-2xl p-2 text-center transition-all">
+                    <p className="mt-4 text-[13px] leading-7 text-[#5D688A]/82 sm:text-sm">
+                      {step.description}
+                    </p>
+
+                    <div className="mt-4 rounded-[1.45rem] border border-white/45 bg-white/24 px-4 py-3 shadow-[inset_4px_4px_8px_rgba(163,177,198,0.12),inset_-4px_-4px_8px_rgba(255,255,255,0.48)]">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8a8fa8]">
+                        Tip Perawatan
+                      </p>
+                      <p className="mt-2 text-[12px] leading-6 text-[#4e6785] sm:text-[13px]">
+                        {step.tip}
+                      </p>
+                    </div>
+                  </NeuCard>
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
+                {STEPS.map((item, index) => (
+                  <StepPill
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    active={index === currentStep}
+                    onClick={() => setCurrentStep(index)}
+                  />
+                ))}
+              </div>
+            </motion.section>
+
+            <motion.section
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.55 }}
+              className="order-1 lg:order-2"
+            >
+              <div className="relative overflow-hidden rounded-[2.4rem] border border-white/55 bg-[linear-gradient(145deg,rgba(255,255,255,0.46),rgba(230,231,238,0.88))] p-4 shadow-[18px_18px_36px_rgba(163,177,198,0.18),-16px_-16px_30px_rgba(255,255,255,0.86)] backdrop-blur-xl sm:p-5 lg:p-6">
+                <motion.div
+                  key={`glow-${step.id}`}
+                  initial={{ opacity: 0.2, scale: 0.86 }}
+                  animate={{ opacity: 0.5, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.12 }}
+                  transition={{ duration: 0.45 }}
+                  className="pointer-events-none absolute left-1/2 top-[18%] h-44 w-44 -translate-x-1/2 rounded-full blur-3xl sm:h-56 sm:w-56"
+                  style={{ background: `${step.color}30` }}
+                />
+                <div className="blob-pink pointer-events-none absolute -left-12 -top-10 h-28 w-28 opacity-30" />
+                <div className="blob-peach pointer-events-none absolute -bottom-10 right-0 h-32 w-32 opacity-30" />
+
+                <div className="relative z-10 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#8a8fa8]">
+                      Visual Prosedur
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-[#3a3f52] sm:text-base">
+                      {step.stageTitle}
+                    </p>
+                  </div>
                   <div
-                    className="relative mx-auto mb-1.5 aspect-square w-full max-w-[64px] overflow-hidden rounded-lg"
-                    style={{ background: item.bg }}
+                    className="rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] shadow-[6px_6px_14px_rgba(163,177,198,0.1),-6px_-6px_14px_rgba(255,255,255,0.66)]"
+                    style={{
+                      color: step.color,
+                      background: `${step.color}14`,
+                      border: `1px solid ${step.color}24`,
+                    }}
                   >
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      fill
-                      className="object-contain p-0.5"
-                      sizes="64px"
-                    />
+                    {isPlaying ? "Auto Play" : "Manual"}
+                  </div>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentStep}
+                    initial={{ opacity: 0, scale: 0.92, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.92, y: -10 }}
+                    transition={{ duration: 0.42, ease: "easeOut" }}
+                    className="relative z-10 mt-4"
+                  >
                     <div
-                      className="absolute left-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded text-[8px] font-bold text-white"
+                      className="relative overflow-hidden rounded-[2rem] border"
                       style={{
-                        background: index <= currentStep ? item.color : "#D4C7B8",
-                        transition: "background 0.3s",
+                        ...stageGradient,
+                        boxShadow:
+                          "inset 1px 1px 0 rgba(255,255,255,0.42), 10px 10px 24px rgba(163,177,198,0.16), -10px -10px 22px rgba(255,255,255,0.74)",
                       }}
                     >
-                      {index + 1}
+                      <motion.div
+                        className="absolute inset-x-[16%] top-[14%] h-[46%] rounded-full blur-3xl"
+                        style={{ background: `${step.color}16` }}
+                        animate={{ scale: [1, 1.06, 1], opacity: [0.45, 0.6, 0.45] }}
+                        transition={{ duration: 3.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+                      />
+                      <div className="absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#4e6785] text-sm font-extrabold text-white shadow-[8px_8px_18px_rgba(137,150,166,0.24),-8px_-8px_18px_rgba(255,255,255,0.16)] sm:h-12 sm:w-12 sm:text-base">
+                        {currentStep === 0 ? "!" : currentStep}
+                      </div>
+                      <div
+                        className="absolute right-4 top-4 z-10 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em]"
+                        style={{
+                          color: step.color,
+                          background: "rgba(255,255,255,0.7)",
+                          border: `1px solid ${step.color}22`,
+                        }}
+                      >
+                        {currentStep + 1}/{STEPS.length}
+                      </div>
+
+                      <div className="relative aspect-[1/1] min-h-[320px] w-full sm:min-h-[430px] lg:min-h-[540px]">
+                        <motion.div
+                          key={`image-${step.id}`}
+                          initial={{ opacity: 0, scale: 0.84, rotate: -6, y: 28 }}
+                          animate={{ opacity: 1, scale: 1, rotate: 0, y: 0 }}
+                          exit={{ opacity: 0, scale: 1.08, rotate: 5, y: -18 }}
+                          transition={{ duration: 0.55, ease: "easeOut" }}
+                          className="absolute inset-0"
+                        >
+                          <motion.div
+                            animate={{ y: [0, -8, 0], rotate: [0, 0.6, 0] }}
+                            transition={{ duration: 4.8, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
+                            className="absolute inset-0"
+                          >
+                            <Image
+                              src={step.image}
+                              alt={step.title}
+                              fill
+                              className="object-contain p-5 sm:p-8 lg:p-10"
+                              sizes="(max-width: 1024px) 100vw, 55vw"
+                              priority
+                            />
+                          </motion.div>
+                        </motion.div>
+                      </div>
+
+                      <div className="absolute inset-x-5 bottom-5 z-10 rounded-[1.35rem] border border-white/55 bg-white/54 px-4 py-3 backdrop-blur-lg shadow-[10px_10px_22px_rgba(163,177,198,0.14),-10px_-10px_18px_rgba(255,255,255,0.72)] sm:hidden">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8a8fa8]">
+                          Langkah Aktif
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-[#3a3f52]">{step.title}</p>
+                      </div>
                     </div>
+                  </motion.div>
+                </AnimatePresence>
+
+                <div className="relative z-10 mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center justify-center gap-2 sm:justify-start">
+                    {STEPS.map((item, index) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setCurrentStep(index)}
+                        className="transition-all duration-300 tap-feedback"
+                        aria-label={`Step ${index + 1}: ${item.title}`}
+                      >
+                        <motion.div
+                          className="rounded-full"
+                          initial={false}
+                          animate={{
+                            width: index === currentStep ? 28 : 8,
+                            height: 8,
+                            backgroundColor:
+                              index === currentStep
+                                ? step.color
+                                : index < currentStep
+                                  ? `${step.color}55`
+                                  : "#D4C7B8",
+                          }}
+                          transition={{ duration: 0.25 }}
+                        />
+                      </button>
+                    ))}
                   </div>
-                  <p className="text-[10px] font-bold leading-tight text-[#3a3f52] sm:text-xs">
-                    {item.title}
-                  </p>
-                  <p className="mt-0.5 text-[9px] text-[#8a8fa8]">
-                    {item.subtitle}
-                  </p>
-                </NeuCard>
-              </motion.button>
-            ))}
+
+                  <div className="flex items-center justify-center gap-2 sm:justify-end">
+                    <NeuButton
+                      onClick={reset}
+                      size="sm"
+                      className="rounded-2xl px-3 py-2 sm:px-4"
+                      aria-label="Reset"
+                    >
+                      <RotateCcw className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </NeuButton>
+                    <NeuButton
+                      onClick={goPrev}
+                      size="sm"
+                      className="rounded-2xl px-3 py-2 sm:px-4"
+                      aria-label="Sebelumnya"
+                    >
+                      <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </NeuButton>
+                    <NeuButton
+                      onClick={() => setIsPlaying((prev) => !prev)}
+                      variant="primary"
+                      size="md"
+                      className="rounded-2xl px-4 py-3 text-white"
+                      aria-label={isPlaying ? "Pause" : "Play"}
+                    >
+                      {isPlaying ? (
+                        <Pause className="h-5 w-5 sm:h-6 sm:w-6" />
+                      ) : (
+                        <Play className="h-5 w-5 sm:h-6 sm:w-6" />
+                      )}
+                    </NeuButton>
+                    <NeuButton
+                      onClick={goNext}
+                      size="sm"
+                      className="rounded-2xl px-3 py-2 sm:px-4"
+                      aria-label="Selanjutnya"
+                    >
+                      <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                    </NeuButton>
+                  </div>
+                </div>
+              </div>
+            </motion.section>
           </div>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-[#8a8fa8]">
-              drg. Natasya Bunga Maureen - Simulasi edukasi pasien
+              drg. Natasya Bunga Maureen - Simulasi edukasi pasien interaktif
             </p>
           </div>
         </div>
@@ -480,3 +582,6 @@ export default function SimulasiPage() {
     </div>
   );
 }
+
+
+

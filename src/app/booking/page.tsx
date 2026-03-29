@@ -265,7 +265,7 @@ export default function BookingPage() {
           </div>
 
           {/* Steps indicator */}
-          <div className="flex items-center justify-center gap-0 mb-6 sm:mb-8">
+          <div className="glass mb-6 rounded-[2rem] border border-white/55 bg-white/38 px-4 py-4 shadow-[14px_14px_28px_rgba(163,177,198,0.14),-12px_-12px_24px_rgba(255,255,255,0.78)] backdrop-blur-xl sm:mb-8"><div className="flex items-center justify-center gap-0">
             {[{n:1,label:"Tanggal"},{n:2,label:"Waktu"},{n:3,label:"Data Diri"}].map((s, i) => (
               <div key={s.n} className="flex items-center">
                 <div className="flex flex-col items-center">
@@ -280,7 +280,7 @@ export default function BookingPage() {
                       border: "1px solid rgba(255,255,255,0.52)",
                       boxShadow: "4px 4px 8px rgba(163,177,198,0.24), -4px -4px 8px rgba(255,255,255,0.42)"
                     }}>
-                    {step > s.n ? "âœ“" : s.n}
+                    {step > s.n ? "✓" : s.n}
                   </div>
                   <span className="text-[10px] font-medium mt-1"
                     style={{ color: step >= s.n ? "#4e6785" : "rgba(78,103,133,0.4)" }}>{s.label}</span>
@@ -289,7 +289,7 @@ export default function BookingPage() {
                   style={{ background: step > s.n ? "rgba(253,172,172,0.5)" : "rgba(93,104,138,0.12)" }} />}
               </div>
             ))}
-          </div>
+          </div></div>
 
           {/* â”€â”€ STEP 1: Select Date â”€â”€ */}
           {step === 1 && (
@@ -389,11 +389,11 @@ export default function BookingPage() {
                       ))}
                     </svg>
                     <span className="absolute -top-1.5 -right-0.5 text-sm"
-                      style={{ animation:"calFloat 2s ease-in-out infinite" }}>âœ¨</span>
+                      style={{ animation:"calFloat 2s ease-in-out infinite" }}>*</span>
                     <span className="absolute -bottom-1 -left-1 text-xs"
-                      style={{ animation:"calFloat 2.3s ease-in-out infinite 0.5s" }}>ðŸ¦·</span>
+                      style={{ animation:"calFloat 2.3s ease-in-out infinite 0.5s" }}>*</span>
                   </div>
-                  <p className="text-xs font-bold text-[#3a3f52]">Tunggu yaa, kami cek dulu ðŸ¦·</p>
+                  <p className="text-xs font-bold text-[#3a3f52]">Tunggu ya, kami cek jadwal dulu</p>
                   <div className="flex gap-1">
                     {[0,1,2].map(i => (
                       <div key={i} className="w-1.5 h-1.5 rounded-full"
@@ -517,7 +517,7 @@ export default function BookingPage() {
                         {dayNamesFull[sd.getDay()]}, {sd.getDate()} {monthNames[sd.getMonth()]} {sd.getFullYear()}
                       </p>
                       <p className="text-xs text-[#5D688A]/65 mt-0.5">
-                        {count > 0 ? `âœ… ${count} slot waktu tersedia` : "âŒ Tidak ada slot tersedia"}
+                        {count > 0 ? `${count} slot waktu tersedia` : "Tidak ada slot tersedia"}
                       </p>
                     </div>
                   </NeuCard>
@@ -665,5 +665,8 @@ export default function BookingPage() {
     </div>
   );
 }
+
+
+
 
 
