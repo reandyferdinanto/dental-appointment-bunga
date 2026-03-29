@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -21,80 +21,167 @@ import {
   NeuIconTile,
 } from "@/components/ui/neumorphism";
 
-const STEPS = [
-  {
-    id: 0,
-    title: "Gigi Berlubang",
-    subtitle: "Kondisi Awal",
+const PROCEDURES = {
+  filling: {
+    chip: "Simulasi Interaktif",
+    title: "Simulasi Penambalan Gigi",
     description:
-      "Gigi mengalami kerusakan akibat karies. Bakteri merusak email dan dentin hingga terbentuk lubang berwarna gelap. Jika tidak ditangani, kerusakan bisa mencapai saraf gigi.",
-    tip: "Kunjungi dokter gigi setiap 6 bulan untuk deteksi dini karies.",
-    color: "#ef4444",
-    bg: "#eef0f6",
-    image: "/images/simulasi/step-0-cavity.png",
-    stageTitle: "Area karies terlihat jelas",
+      "Pelajari alur perawatan dari kondisi awal sampai hasil akhir dengan tampilan visual yang lebih jelas dan kontrol yang mudah diikuti.",
+    infoTitle: "Tentang Simulasi",
+    infoDescription:
+      "Penambalan gigi adalah tindakan umum untuk memperbaiki gigi berlubang. Simulasi ini membantu pasien memahami setiap tahap sebelum perawatan dilakukan.",
+    footer: "drg. Natasya Bunga Maureen - Simulasi edukasi pasien interaktif",
+    steps: [
+      {
+        id: 0,
+        title: "Gigi Berlubang",
+        subtitle: "Kondisi Awal",
+        description:
+          "Gigi mengalami kerusakan akibat karies. Bakteri merusak email dan dentin hingga terbentuk lubang berwarna gelap. Jika tidak ditangani, kerusakan bisa mencapai saraf gigi.",
+        tip: "Kunjungi dokter gigi setiap 6 bulan untuk deteksi dini karies.",
+        color: "#ef4444",
+        image: "/images/simulasi/step-0-cavity.png",
+        stageTitle: "Area karies terlihat jelas",
+      },
+      {
+        id: 1,
+        title: "Pemeriksaan",
+        subtitle: "Langkah 1",
+        description:
+          "Dokter memeriksa kondisi gigi dengan kaca mulut dan sonde untuk menilai kedalaman lubang. Rontgen dapat digunakan bila perlu untuk melihat kondisi di bawah permukaan.",
+        tip: "Sampaikan keluhan nyeri dengan jelas agar dokter dapat menentukan penanganan terbaik.",
+        color: "#3b82f6",
+        image: "/images/simulasi/step-1-examination.png",
+        stageTitle: "Pemeriksaan kedalaman kerusakan",
+      },
+      {
+        id: 2,
+        title: "Anestesi Lokal",
+        subtitle: "Langkah 2",
+        description:
+          "Dokter memberikan anestesi lokal di sekitar gigi yang akan ditambal. Area menjadi mati rasa sehingga pasien lebih nyaman selama prosedur berlangsung.",
+        tip: "Efek bius biasanya hilang dalam 2 sampai 4 jam setelah tindakan.",
+        color: "#8b5cf6",
+        image: "/images/simulasi/step-2-anesthesia.png",
+        stageTitle: "Persiapan area sebelum tindakan",
+      },
+      {
+        id: 3,
+        title: "Pembersihan Karies",
+        subtitle: "Langkah 3",
+        description:
+          "Dengan handpiece khusus, dokter mengangkat jaringan gigi yang rusak dan membersihkan kavitas sampai tersisa jaringan sehat yang siap ditambal.",
+        tip: "Suara alat mungkin terdengar keras, tetapi anestesi membantu mengurangi rasa tidak nyaman.",
+        color: "#f59e0b",
+        image: "/images/simulasi/step-3-drilling.png",
+        stageTitle: "Jaringan yang rusak dibersihkan",
+      },
+      {
+        id: 4,
+        title: "Penambalan",
+        subtitle: "Langkah 4",
+        description:
+          "Bahan tambal resin komposit diaplikasikan bertahap ke dalam kavitas. Setiap lapisan disinari untuk mengeras dan menempel kuat pada struktur gigi.",
+        tip: "Tambalan modern dapat disesuaikan dengan warna gigi asli agar hasilnya natural.",
+        color: "#10b981",
+        image: "/images/simulasi/step-4-filling.png",
+        stageTitle: "Lapisan tambalan dibentuk bertahap",
+      },
+      {
+        id: 5,
+        title: "Poles dan Selesai",
+        subtitle: "Langkah 5",
+        description:
+          "Tambalan dipoles agar halus dan nyaman saat menggigit. Dokter juga memeriksa oklusi untuk memastikan tinggi tambalan sudah pas dan gigi bisa berfungsi normal.",
+        tip: "Hindari makanan keras pada 24 jam pertama agar area tambalan tetap nyaman.",
+        color: "#06b6d4",
+        image: "/images/simulasi/step-5-polished.png",
+        stageTitle: "Hasil akhir tampak lebih rapi",
+      },
+    ],
   },
-  {
-    id: 1,
-    title: "Pemeriksaan",
-    subtitle: "Langkah 1",
+  scaling: {
+    chip: "Simulasi Interaktif",
+    title: "Simulasi Scaling Gigi",
     description:
-      "Dokter memeriksa kondisi gigi dengan kaca mulut dan sonde untuk menilai kedalaman lubang. Rontgen dapat digunakan bila perlu untuk melihat kondisi di bawah permukaan.",
-    tip: "Sampaikan keluhan nyeri dengan jelas agar dokter dapat menentukan penanganan terbaik.",
-    color: "#3b82f6",
-    bg: "#eef0f6",
-    image: "/images/simulasi/step-1-examination.png",
-    stageTitle: "Pemeriksaan kedalaman kerusakan",
+      "Pahami alur pembersihan karang gigi dari pemeriksaan awal sampai permukaan gigi terasa lebih bersih, halus, dan nyaman.",
+    infoTitle: "Tentang Scaling",
+    infoDescription:
+      "Scaling gigi dilakukan untuk membersihkan plak dan karang gigi yang menempel di atas maupun di sekitar garis gusi. Tindakan ini membantu menjaga kesehatan gusi dan mengurangi bau mulut.",
+    footer: "drg. Natasya Bunga Maureen - Simulasi edukasi scaling gigi",
+    steps: [
+      {
+        id: 0,
+        title: "Karang Gigi Menumpuk",
+        subtitle: "Kondisi Awal",
+        description:
+          "Plak yang tidak dibersihkan akan mengeras menjadi karang gigi. Penumpukan ini sering muncul di dekat garis gusi dan dapat memicu radang, bau mulut, serta perdarahan saat menyikat gigi.",
+        tip: "Karang gigi tidak bisa dibersihkan tuntas hanya dengan sikat gigi biasa dan perlu alat profesional.",
+        color: "#ef4444",
+        image: "/images/simulasi/scaling-step-0.png",
+        stageTitle: "Karang gigi tampak menempel di sekitar gusi",
+      },
+      {
+        id: 1,
+        title: "Pemeriksaan Gusi",
+        subtitle: "Langkah 1",
+        description:
+          "Dokter memeriksa kondisi gusi, melihat lokasi karang gigi, dan menilai apakah ada perdarahan atau radang. Area yang paling banyak penumpukan akan menjadi fokus pembersihan.",
+        tip: "Beritahu dokter bila Anda sering gusi berdarah atau memiliki gigi sensitif.",
+        color: "#3b82f6",
+        image: "/images/simulasi/scaling-step-1.png",
+        stageTitle: "Area scaling dipetakan sebelum tindakan",
+      },
+      {
+        id: 2,
+        title: "Ultrasonic Scaling",
+        subtitle: "Langkah 2",
+        description:
+          "Alat ultrasonic digunakan untuk memecah karang gigi dengan getaran halus dan semprotan air. Tahap ini membantu melepaskan deposit keras dari permukaan gigi dengan lebih efisien.",
+        tip: "Suara alat mungkin terdengar nyaring, tetapi biasanya tindakan berlangsung cepat.",
+        color: "#8b5cf6",
+        image: "/images/simulasi/scaling-step-2.png",
+        stageTitle: "Getaran alat membantu melepaskan karang gigi",
+      },
+      {
+        id: 3,
+        title: "Scaling Manual Detail",
+        subtitle: "Langkah 3",
+        description:
+          "Dokter melanjutkan dengan instrumen manual untuk area yang lebih sempit atau karang yang masih tertinggal di dekat garis gusi agar hasil pembersihan lebih menyeluruh.",
+        tip: "Bagian ini penting untuk memastikan sisa deposit keras benar-benar terangkat.",
+        color: "#f59e0b",
+        image: "/images/simulasi/scaling-step-3.png",
+        stageTitle: "Sisa karang dibersihkan lebih detail",
+      },
+      {
+        id: 4,
+        title: "Polishing",
+        subtitle: "Langkah 4",
+        description:
+          "Setelah karang gigi dibersihkan, permukaan gigi dipoles agar terasa lebih halus. Tahap ini juga membantu mengurangi noda ringan yang menempel di permukaan.",
+        tip: "Polishing membuat permukaan gigi lebih licin sehingga plak baru tidak mudah menempel.",
+        color: "#10b981",
+        image: "/images/simulasi/scaling-step-4.png",
+        stageTitle: "Permukaan gigi dipoles hingga lebih halus",
+      },
+      {
+        id: 5,
+        title: "Kontrol dan Edukasi",
+        subtitle: "Langkah 5",
+        description:
+          "Dokter mengevaluasi hasil scaling, memberi edukasi cara menyikat gigi yang benar, dan menjelaskan jadwal kontrol agar karang gigi tidak cepat menumpuk kembali.",
+        tip: "Scaling rutin tiap 6 bulan umumnya dianjurkan, tergantung kondisi gigi dan gusi pasien.",
+        color: "#06b6d4",
+        image: "/images/simulasi/scaling-step-5.png",
+        stageTitle: "Gigi lebih bersih dan gusi lebih nyaman",
+      },
+    ],
   },
-  {
-    id: 2,
-    title: "Anestesi Lokal",
-    subtitle: "Langkah 2",
-    description:
-      "Dokter memberikan anestesi lokal di sekitar gigi yang akan ditambal. Area menjadi mati rasa sehingga pasien lebih nyaman selama prosedur berlangsung.",
-    tip: "Efek bius biasanya hilang dalam 2 sampai 4 jam setelah tindakan.",
-    color: "#8b5cf6",
-    bg: "#eef0f6",
-    image: "/images/simulasi/step-2-anesthesia.png",
-    stageTitle: "Persiapan area sebelum tindakan",
-  },
-  {
-    id: 3,
-    title: "Pembersihan Karies",
-    subtitle: "Langkah 3",
-    description:
-      "Dengan handpiece khusus, dokter mengangkat jaringan gigi yang rusak dan membersihkan kavitas sampai tersisa jaringan sehat yang siap ditambal.",
-    tip: "Suara alat mungkin terdengar keras, tetapi anestesi membantu mengurangi rasa tidak nyaman.",
-    color: "#f59e0b",
-    bg: "#eef0f6",
-    image: "/images/simulasi/step-3-drilling.png",
-    stageTitle: "Jaringan yang rusak dibersihkan",
-  },
-  {
-    id: 4,
-    title: "Penambalan",
-    subtitle: "Langkah 4",
-    description:
-      "Bahan tambal resin komposit diaplikasikan bertahap ke dalam kavitas. Setiap lapisan disinari untuk mengeras dan menempel kuat pada struktur gigi.",
-    tip: "Tambalan modern dapat disesuaikan dengan warna gigi asli agar hasilnya natural.",
-    color: "#10b981",
-    bg: "#eef0f6",
-    image: "/images/simulasi/step-4-filling.png",
-    stageTitle: "Lapisan tambalan dibentuk bertahap",
-  },
-  {
-    id: 5,
-    title: "Poles dan Selesai",
-    subtitle: "Langkah 5",
-    description:
-      "Tambalan dipoles agar halus dan nyaman saat menggigit. Dokter juga memeriksa oklusi untuk memastikan tinggi tambalan sudah pas dan gigi bisa berfungsi normal.",
-    tip: "Hindari makanan keras pada 24 jam pertama agar area tambalan tetap nyaman.",
-    color: "#06b6d4",
-    bg: "#eef0f6",
-    image: "/images/simulasi/step-5-polished.png",
-    stageTitle: "Hasil akhir tampak lebih rapi",
-  },
-] as const;
+} as const;
+
+type ProcedureKey = keyof typeof PROCEDURES;
+type Step = (typeof PROCEDURES)[ProcedureKey]["steps"][number];
 
 function StepPill({
   item,
@@ -102,7 +189,7 @@ function StepPill({
   active,
   onClick,
 }: {
-  item: (typeof STEPS)[number];
+  item: Step;
   index: number;
   active: boolean;
   onClick: () => void;
@@ -145,12 +232,15 @@ function StepPill({
 }
 
 export default function SimulasiPage() {
+  const [procedure, setProcedure] = useState<ProcedureKey>("filling");
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
-  const step = STEPS[currentStep];
-  const progressWidth = `${((currentStep + 1) / STEPS.length) * 100}%`;
+  const procedureConfig = PROCEDURES[procedure];
+  const steps = procedureConfig.steps;
+  const step = steps[currentStep];
+  const progressWidth = `${((currentStep + 1) / steps.length) * 100}%`;
 
   const stageGradient = useMemo(
     () => ({
@@ -161,12 +251,12 @@ export default function SimulasiPage() {
   );
 
   const goNext = useCallback(() => {
-    setCurrentStep((prev) => (prev < STEPS.length - 1 ? prev + 1 : 0));
-  }, []);
+    setCurrentStep((prev) => (prev < steps.length - 1 ? prev + 1 : 0));
+  }, [steps.length]);
 
   const goPrev = useCallback(() => {
-    setCurrentStep((prev) => (prev > 0 ? prev - 1 : STEPS.length - 1));
-  }, []);
+    setCurrentStep((prev) => (prev > 0 ? prev - 1 : steps.length - 1));
+  }, [steps.length]);
 
   const reset = useCallback(() => {
     setCurrentStep(0);
@@ -178,7 +268,7 @@ export default function SimulasiPage() {
 
     const timer = setInterval(() => {
       setCurrentStep((prev) => {
-        if (prev >= STEPS.length - 1) {
+        if (prev >= steps.length - 1) {
           setIsPlaying(false);
           return prev;
         }
@@ -188,7 +278,7 @@ export default function SimulasiPage() {
     }, 4000);
 
     return () => clearInterval(timer);
-  }, [isPlaying]);
+  }, [isPlaying, steps.length]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -256,7 +346,7 @@ export default function SimulasiPage() {
                     <NeuIconTile tone="accent" className="h-11 w-11 rounded-2xl">
                       <Info className="h-5 w-5" />
                     </NeuIconTile>
-                    <h3 className="text-sm font-bold text-[#3a3f52]">Tentang Simulasi</h3>
+                    <h3 className="text-sm font-bold text-[#3a3f52]">{procedureConfig.infoTitle}</h3>
                   </div>
                   <button
                     onClick={() => setShowInfo(false)}
@@ -267,7 +357,7 @@ export default function SimulasiPage() {
                   </button>
                 </div>
                 <p className="text-xs leading-relaxed text-[#5D688A]">
-                  <strong>Penambalan gigi</strong> adalah tindakan umum untuk memperbaiki gigi berlubang. Simulasi ini membantu pasien memahami setiap tahap sebelum perawatan dilakukan.
+                  {procedureConfig.infoDescription}
                 </p>
                 <NeuChip className="mt-4 w-full justify-center rounded-2xl px-3 py-2 text-[11px] font-semibold text-[#5D688A]">
                   Gunakan tombol navigasi atau keyboard kiri dan kanan. Tekan play untuk auto-play.
@@ -290,14 +380,61 @@ export default function SimulasiPage() {
               <div className="max-w-lg">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(253,172,172,0.45)] bg-white/50 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5D688A] shadow-[8px_8px_18px_rgba(163,177,198,0.12),-8px_-8px_18px_rgba(255,255,255,0.8)]">
                   <span className="h-2 w-2 rounded-full bg-[#FDACAC] animate-pulse-soft" />
-                  Simulasi Interaktif
+                  {procedureConfig.chip}
                 </div>
                 <h1 className="mt-4 max-w-[11ch] text-[2.2rem] font-extrabold leading-[0.94] tracking-[-0.05em] text-[#3a3f52] sm:text-[2.8rem] lg:text-[3.35rem]">
-                  Simulasi <span className="gradient-text">Penambalan Gigi</span>
+                  Simulasi{" "}
+                  <span className="gradient-text">
+                    {procedure === "filling" ? "Penambalan Gigi" : "Scaling Gigi"}
+                  </span>
                 </h1>
                 <p className="mt-3 max-w-[32rem] text-sm leading-7 text-[#5D688A]/78 sm:text-[15px]">
-                  Pelajari alur perawatan dari kondisi awal sampai hasil akhir dengan tampilan visual yang lebih jelas dan kontrol yang mudah diikuti.
+                  {procedureConfig.description}
                 </p>
+
+                <div className="mt-5 grid gap-2 sm:max-w-md sm:grid-cols-2">
+                  {([
+                    { key: "filling", label: "Penambalan" },
+                    { key: "scaling", label: "Scaling" },
+                  ] as const).map((item) => {
+                    const active = item.key === procedure;
+
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => {
+                          setProcedure(item.key);
+                          setCurrentStep(0);
+                          setIsPlaying(false);
+                        }}
+                        className="rounded-[1.2rem] border px-4 py-3 text-left transition-all duration-200"
+                        style={active ? {
+                          background: "linear-gradient(135deg, #4e6785 0%, #6d7f9e 100%)",
+                          color: "#ffffff",
+                          borderColor: "rgba(255,255,255,0.18)",
+                          boxShadow: "12px 12px 24px rgba(120,134,155,0.2), -8px -8px 18px rgba(255,255,255,0.16)",
+                        } : {
+                          background: "rgba(255,255,255,0.42)",
+                          color: "#4e6785",
+                          borderColor: "rgba(255,255,255,0.52)",
+                          boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.38)",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-bold tracking-[-0.02em]">{item.label}</span>
+                          <span
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{
+                              background: active ? "rgba(253,172,172,0.95)" : "rgba(93,104,138,0.24)",
+                              boxShadow: active ? "0 0 0 4px rgba(253,172,172,0.16)" : "none",
+                            }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="mt-6 flex items-end justify-between gap-4">
@@ -306,7 +443,7 @@ export default function SimulasiPage() {
                     Progress
                   </p>
                   <p className="mt-1 text-sm font-bold text-[#3a3f52]">
-                    {currentStep + 1} dari {STEPS.length} langkah
+                    {currentStep + 1} dari {steps.length} langkah
                   </p>
                 </div>
                 <NeuChip
@@ -375,7 +512,7 @@ export default function SimulasiPage() {
               </AnimatePresence>
 
               <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
-                {STEPS.map((item, index) => (
+                {steps.map((item, index) => (
                   <StepPill
                     key={item.id}
                     item={item}
@@ -461,7 +598,7 @@ export default function SimulasiPage() {
                           border: `1px solid ${step.color}22`,
                         }}
                       >
-                        {currentStep + 1}/{STEPS.length}
+                        {currentStep + 1}/{steps.length}
                       </div>
 
                       <div className="relative aspect-[1/1] min-h-[320px] w-full sm:min-h-[430px] lg:min-h-[540px]">
@@ -486,6 +623,21 @@ export default function SimulasiPage() {
                               sizes="(max-width: 1024px) 100vw, 55vw"
                               priority
                             />
+                            {procedure === "scaling" ? (
+                              <>
+                                <div className="pointer-events-none absolute inset-x-[24%] top-[26%] h-4 rounded-full bg-[rgba(123,91,255,0.08)] blur-md" />
+                                <div className="pointer-events-none absolute inset-x-[28%] top-[31%] h-3 rounded-full bg-[rgba(239,68,68,0.18)] blur-sm" />
+                                <div className="pointer-events-none absolute inset-x-[31%] top-[36%] h-2.5 rounded-full bg-[rgba(245,158,11,0.16)] blur-sm" />
+                                <div
+                                  className="pointer-events-none absolute right-[20%] top-[22%] h-24 w-1.5 rounded-full"
+                                  style={{ background: `linear-gradient(180deg, ${step.color}, rgba(255,255,255,0.1))` }}
+                                />
+                                <div
+                                  className="pointer-events-none absolute right-[19.2%] top-[20%] h-10 w-5 rounded-full border border-white/55 bg-white/55 shadow-[6px_6px_14px_rgba(163,177,198,0.12),-6px_-6px_14px_rgba(255,255,255,0.66)]"
+                                  style={{ boxShadow: `0 0 0 6px ${step.color}12` }}
+                                />
+                              </>
+                            ) : null}
                           </motion.div>
                         </motion.div>
                       </div>
@@ -502,7 +654,7 @@ export default function SimulasiPage() {
 
                 <div className="relative z-10 mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center justify-center gap-2 sm:justify-start">
-                    {STEPS.map((item, index) => (
+                    {steps.map((item, index) => (
                       <button
                         key={item.id}
                         onClick={() => setCurrentStep(index)}
@@ -574,7 +726,7 @@ export default function SimulasiPage() {
 
           <div className="mt-6 text-center">
             <p className="text-xs text-[#8a8fa8]">
-              drg. Natasya Bunga Maureen - Simulasi edukasi pasien interaktif
+              {procedureConfig.footer}
             </p>
           </div>
         </div>

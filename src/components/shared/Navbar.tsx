@@ -1,14 +1,15 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { Menu, X, Sparkles, Calendar, Clock, Home } from "lucide-react";
+import { Menu, X, Sparkles, Calendar, Clock, Home, Stethoscope } from "lucide-react";
 
 const navLinks = [
   { href: "/", label: "Beranda", icon: Home },
   { href: "/jadwal", label: "Jadwal", icon: Clock },
+  { href: "/analisa-gejala", label: "Analisa", icon: Stethoscope },
   { href: "/booking", label: "Booking", icon: Calendar },
 ];
 
@@ -209,3 +210,4 @@ export default function Navbar() {
     </nav>
   );
 }
+
