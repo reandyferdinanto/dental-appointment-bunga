@@ -50,22 +50,22 @@ export async function POST(req: NextRequest) {
     if (role !== "superadmin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const { name, email, password, role = "admin" } = body;
+    const { name, email, password, role: newAdminRole = "admin" } = body;
     if (!name || !email || !password) {
       return NextResponse.json({ error: "name, email, dan password wajib diisi" }, { status: 400 });
     }
     const passwordHash = hashPassword(password);
     const { v4: uuidv4 } = await import("uuid");
-    const admin = { id: uuidv4(), name, email, passwordHash, role, createdAt: new Date().toISOString() };
+    const admin = { id: uuidv4(), name, email, passwordHash, role: newAdminRole, createdAt: new Date().toISOString() };
 
     await db.collection(COLLECTIONS.admins).insertOne({ ...admin, _id: admin.id as unknown as import("mongodb").ObjectId });
 
     // Backup to GSheet
-    gsheet.call("admin_create", { name, email, passwordHash, role }).catch(err => {
+    gsheet.call("admin_create", { name, email, passwordHash, role: newAdminRole }).catch(err => {
       console.error("[admin] GSheet backup error:", err);
     });
 
-    return NextResponse.json({ id: admin.id, name, email, role });
+    return NextResponse.json({ id: admin.id, name, email, role: newAdminRole });
   }
 
   // ── Change own password ─────────────────────────────────────────────────────
