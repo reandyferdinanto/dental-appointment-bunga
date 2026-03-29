@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
@@ -230,15 +230,15 @@ export default async function HomePage() {
                     <path fill="url(#hero-tooth-blush)" d="M25.76,37.5c-1.966,0-2.26-2.192-2.26-3.5l0.004-0.818c0.021-3.23,0.053-8.113-1.77-9.947 C21.25,22.747,20.666,22.5,20,22.5s-1.25,0.247-1.734,0.734c-1.822,1.834-1.79,6.717-1.77,9.947L16.5,34 c0,1.308-0.294,3.5-2.261,3.5c-2.255,0-2.99-3.53-3.841-7.618c-0.275-1.323-0.561-2.691-0.916-4.012 c-0.552-2.004-1.488-3.874-2.394-5.683C5.758,17.528,4.5,15.016,4.5,12.286C4.5,5.701,7.843,2.5,14.72,2.5 c1.33,0,3.656,0.37,4.866,0.902l0.09,0.039c0,0,0.101,0.003,0.102,0.003c0.231,0,0.398-0.043,0.431-0.052 c0.04-0.012,3.036-0.893,4.698-0.893c3.438,0,6.238,0.996,8.101,2.879c1.663,1.682,2.524,4.068,2.492,6.901 c0,2.734-1.257,5.247-2.588,7.907c-0.905,1.809-1.842,3.679-2.394,5.68c-0.36,1.322-0.648,2.701-0.927,4.036 C28.774,33.81,28.004,37.5,25.76,37.5z" />
                   </svg>
 
-                  <div className="absolute inset-x-[30%] top-[22%] flex justify-center">
-                    <div className="flex h-[4.8rem] w-[4.8rem] items-center justify-center rounded-[1.65rem] border border-white/72 bg-white/66 shadow-[12px_12px_26px_rgba(163,177,198,0.18),-10px_-10px_20px_rgba(255,255,255,0.8)] backdrop-blur-xl sm:h-[5.25rem] sm:w-[5.25rem]">
-                      <Image
-                        src="/tooth.svg"
-                        alt="Tooth logo"
-                        width={76}
-                        height={76}
-                        className="h-12 w-12 drop-shadow-[0_10px_18px_rgba(243,182,194,0.16)] sm:h-14 sm:w-14"
-                      />
+                  <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute inset-x-[16%] top-[17%] h-[58%] rounded-full border border-white/42 opacity-70" />
+                    <div className="absolute left-[17%] top-[26%] h-3.5 w-3.5 rounded-full border border-white/70 bg-white/62 shadow-[6px_6px_12px_rgba(163,177,198,0.14),-4px_-4px_10px_rgba(255,255,255,0.76)]" />
+                    <div className="absolute right-[18%] top-[24%] h-5 w-5 rounded-full border border-[#f7cfd4]/55 bg-[rgba(255,255,255,0.5)] shadow-[8px_8px_16px_rgba(163,177,198,0.12),-6px_-6px_12px_rgba(255,255,255,0.78)]" />
+                    <div className="absolute left-[20%] top-[54%] rounded-full border border-white/62 bg-white/54 px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-[#5D688A] shadow-[8px_8px_16px_rgba(163,177,198,0.12),-6px_-6px_12px_rgba(255,255,255,0.74)]">
+                      Care
+                    </div>
+                    <div className="absolute right-[19%] top-[56%] rounded-full border border-[#FDACAC]/35 bg-[rgba(255,255,255,0.56)] px-3 py-1 text-[9px] font-semibold uppercase tracking-[0.2em] text-[#E79191] shadow-[8px_8px_16px_rgba(163,177,198,0.12),-6px_-6px_12px_rgba(255,255,255,0.74)]">
+                      Smile
                     </div>
                   </div>
                 </div>
