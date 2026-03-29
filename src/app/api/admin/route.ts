@@ -3,8 +3,15 @@ import { auth, hashPassword } from "@/lib/auth";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { gsheet } from "@/lib/gsheet";
 
-function getSessionRole(session: Awaited<ReturnType<typeof auth>>) {
-  return (session?.user as { role?: string } | undefined)?.role;
+type AdminSession = {
+  user?: {
+    id?: string;
+    role?: string;
+  };
+} | null;
+
+function getSessionRole(session: AdminSession) {
+  return session?.user?.role;
 }
 
 // GET — list all admins (names + emails only, no hashes) from MongoDB
