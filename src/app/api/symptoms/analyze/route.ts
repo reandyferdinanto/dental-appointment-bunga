@@ -1,7 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import { analyzeDentalSymptoms, AiProviderError } from "@/lib/ai/gemini";
 import { applyRateLimit, getClientIp } from "@/lib/rate-limit";
-import { symptomAnalysisSchema } from "@/lib/validators";
+import { symptomAnalysisSchema, validateSchema } from "@/lib/validators";
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -26,7 +26,15 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const input = symptomAnalysisSchema.parse(body);
+    const parsed = await validateSchema(symptomAnalysisSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.message, details: parsed.errors },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const input = parsed.data;
     const analysis = await analyzeDentalSymptoms(input);
 
     return NextResponse.json(analysis, {

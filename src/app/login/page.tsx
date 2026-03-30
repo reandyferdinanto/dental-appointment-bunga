@@ -12,6 +12,12 @@ import {
   NeuIconTile,
   NeuInput,
 } from "@/components/ui/neumorphism";
+import {
+  type FieldErrors,
+  type LoginInput,
+  loginSchema,
+  validateSchema,
+} from "@/lib/validators";
 
 export default function LoginPage() {
   const router       = useRouter();
@@ -19,18 +25,28 @@ export default function LoginPage() {
   const [email, setEmail]     = useState("");
   const [password, setPassword] = useState("");
   const [error, setError]     = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<LoginInput>>({});
   const [loading, setLoading] = useState(false);
   const sessionExpired = searchParams.get("reason") === "session_expired";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const parsed = await validateSchema(loginSchema, { email, password });
+    if (!parsed.success) {
+      setFieldErrors(parsed.errors as FieldErrors<LoginInput>);
+      setError(parsed.message);
+      return;
+    }
+
     setError("");
+    setFieldErrors({});
     setLoading(true);
 
     try {
       const res = await signIn("credentials", {
-        email,
-        password,
+        email: parsed.data.email,
+        password: parsed.data.password,
         redirect: false,
       });
 
@@ -107,10 +123,14 @@ export default function LoginPage() {
               <NeuInput
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 placeholder="bunga@dentist.com"
                 required
               />
+              {fieldErrors.email ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.email}</p> : null}
             </div>
 
             <div>
@@ -120,10 +140,14 @@ export default function LoginPage() {
               <NeuInput
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                }}
                 placeholder="........"
                 required
               />
+              {fieldErrors.password ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.password}</p> : null}
             </div>
 
             <NeuButton

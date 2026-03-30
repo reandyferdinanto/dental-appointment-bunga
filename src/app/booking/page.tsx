@@ -26,6 +26,12 @@ import {
   NeuInput,
   NeuTextarea,
 } from "@/components/ui/neumorphism";
+import {
+  appointmentSchema,
+  type AppointmentInput,
+  type FieldErrors,
+  validateSchema,
+} from "@/lib/validators";
 
 const monthNames = [
   "Januari","Februari","Maret","April","Mei","Juni",
@@ -34,8 +40,8 @@ const monthNames = [
 const dayNames    = ["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
 const dayNamesFull = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
 
-function FormInput({ label, icon: Icon, required, children }: {
-  label: string; icon?: React.ElementType; required?: boolean; children: React.ReactNode;
+function FormInput({ label, icon: Icon, required, error, children }: {
+  label: string; icon?: React.ElementType; required?: boolean; error?: string; children: React.ReactNode;
 }) {
   return (
     <div>
@@ -44,6 +50,9 @@ function FormInput({ label, icon: Icon, required, children }: {
         {label}{required && " *"}
       </label>
       {children}
+      {error ? (
+        <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{error}</p>
+      ) : null}
     </div>
   );
 }
@@ -67,6 +76,7 @@ export default function BookingPage() {
   const [submitting, setSubmitting]       = useState(false);
   const [success, setSuccess]             = useState(false);
   const [error, setError]                 = useState("");
+  const [fieldErrors, setFieldErrors]     = useState<FieldErrors<AppointmentInput>>({});
   const [bookingResult, setBookingResult] = useState<{id:string;date:string;time:string}|null>(null);
 
   // Map of dateStr â†’ slot count for the visible month
@@ -76,6 +86,11 @@ export default function BookingPage() {
   const [form, setForm] = useState({
     patientName: "", patientPhone: "", patientEmail: "", complaint: "",
   });
+
+  function updateForm<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
 
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
@@ -151,12 +166,22 @@ export default function BookingPage() {
   }, [selectedDate, loadSlots]);
 
   async function handleSubmit() {
-    setSubmitting(true); setError("");
+    const payload = { ...form, koasId: "bunga", date: selectedDate, time: selectedTime };
+    const parsed = await validateSchema(appointmentSchema, payload);
+    if (!parsed.success) {
+      setFieldErrors(parsed.errors as FieldErrors<AppointmentInput>);
+      setError(parsed.message);
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+    setFieldErrors({});
     try {
       const res = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, koasId: "bunga", date: selectedDate, time: selectedTime }),
+        body: JSON.stringify(parsed.data),
       });
       if (res.ok) {
         const data = await res.json();
@@ -164,6 +189,9 @@ export default function BookingPage() {
         setSuccess(true);
       } else {
         const errData = await res.json();
+        if (errData?.details && typeof errData.details === "object") {
+          setFieldErrors(errData.details as FieldErrors<AppointmentInput>);
+        }
         setError(errData.error || "Gagal membuat janji");
       }
     } catch { setError("Terjadi kesalahan. Silakan coba lagi."); }
@@ -620,24 +648,24 @@ export default function BookingPage() {
               )}
 
               <div className="space-y-4">
-                <FormInput label="Nama Lengkap" icon={User} required>
+                <FormInput label="Nama Lengkap" icon={User} required error={fieldErrors.patientName}>
                   <NeuInput type="text" value={form.patientName}
-                    onChange={e => setForm({...form, patientName: e.target.value})}
+                    onChange={e => updateForm("patientName", e.target.value)}
                     placeholder="Masukkan nama lengkap" />
                 </FormInput>
-                <FormInput label="Nomor HP / WhatsApp" icon={Phone} required>
+                <FormInput label="Nomor HP / WhatsApp" icon={Phone} required error={fieldErrors.patientPhone}>
                   <NeuInput type="tel" value={form.patientPhone}
-                    onChange={e => setForm({...form, patientPhone: e.target.value})}
+                    onChange={e => updateForm("patientPhone", e.target.value)}
                     placeholder="08xxxxxxxxxx" />
                 </FormInput>
-                <FormInput label="Email (opsional)" icon={Mail}>
+                <FormInput label="Email (opsional)" icon={Mail} error={fieldErrors.patientEmail}>
                   <NeuInput type="email" value={form.patientEmail}
-                    onChange={e => setForm({...form, patientEmail: e.target.value})}
+                    onChange={e => updateForm("patientEmail", e.target.value)}
                     placeholder="email@contoh.com" />
                 </FormInput>
-                <FormInput label="Keluhan" icon={FileText} required>
+                <FormInput label="Keluhan" icon={FileText} required error={fieldErrors.complaint}>
                   <NeuTextarea rows={3} value={form.complaint}
-                    onChange={e => setForm({...form, complaint: e.target.value})}
+                    onChange={e => updateForm("complaint", e.target.value)}
                     placeholder="Jelaskan keluhan gigi Anda..." />
                 </FormInput>
               </div>

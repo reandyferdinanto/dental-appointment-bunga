@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, hashPassword } from "@/lib/auth";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { gsheet } from "@/lib/gsheet";
+import {
+  adminAddSchema,
+  adminChangePasswordSchema,
+  adminDeleteSchema,
+  adminUpdateSchema,
+  validateSchema,
+} from "@/lib/validators";
 
 type AdminSession = {
   user?: {
@@ -50,10 +57,16 @@ export async function POST(req: NextRequest) {
     if (role !== "superadmin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const { name, email, password, role: newAdminRole = "admin" } = body;
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: "name, email, dan password wajib diisi" }, { status: 400 });
+    const parsed = await validateSchema(adminAddSchema, {
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      role: body.role ?? "admin",
+    });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.message, details: parsed.errors }, { status: 400 });
     }
+    const { name, email, password, role: newAdminRole } = parsed.data;
     const passwordHash = hashPassword(password);
     const { v4: uuidv4 } = await import("uuid");
     const admin = { id: uuidv4(), name, email, passwordHash, role: newAdminRole, createdAt: new Date().toISOString() };
@@ -70,15 +83,16 @@ export async function POST(req: NextRequest) {
 
   // ── Change own password ─────────────────────────────────────────────────────
   if (action === "change_password") {
-    const { id, newPassword } = body;
-    if (!id || !newPassword) {
-      return NextResponse.json({ error: "id dan newPassword wajib diisi" }, { status: 400 });
+    const parsed = await validateSchema(adminChangePasswordSchema, {
+      id: body.id,
+      newPassword: body.newPassword,
+    });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.message, details: parsed.errors }, { status: 400 });
     }
+    const { id, newPassword } = parsed.data;
     if (role !== "superadmin" && id !== currentUserId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
     }
     const passwordHash = hashPassword(newPassword);
     await db.collection(COLLECTIONS.admins).updateOne({ id }, { $set: { passwordHash } });
@@ -96,8 +110,15 @@ export async function POST(req: NextRequest) {
     if (role !== "superadmin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const { id, name, email } = body;
-    if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
+    const parsed = await validateSchema(adminUpdateSchema, {
+      id: body.id,
+      name: body.name,
+      email: body.email,
+    });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.message, details: parsed.errors }, { status: 400 });
+    }
+    const { id, name, email } = parsed.data;
 
     const updateData: Record<string, string> = {};
     if (name) updateData.name = name;
@@ -118,8 +139,11 @@ export async function POST(req: NextRequest) {
     if (role !== "superadmin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const { id } = body;
-    if (!id) return NextResponse.json({ error: "id wajib diisi" }, { status: 400 });
+    const parsed = await validateSchema(adminDeleteSchema, { id: body.id });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.message, details: parsed.errors }, { status: 400 });
+    }
+    const { id } = parsed.data;
 
     await db.collection(COLLECTIONS.admins).deleteOne({ id });
 

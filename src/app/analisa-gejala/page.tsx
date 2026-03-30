@@ -22,7 +22,13 @@ import {
   NeuInput,
   NeuTextarea,
 } from "@/components/ui/neumorphism";
-import type { SymptomAnalysisResult } from "@/lib/validators";
+import {
+  type FieldErrors,
+  type SymptomAnalysisInput,
+  type SymptomAnalysisResult,
+  symptomAnalysisSchema,
+  validateSchema,
+} from "@/lib/validators";
 
 const urgencyConfig: Record<SymptomAnalysisResult["urgency"], { label: string; color: string }> = {
   darurat: { label: "Darurat", color: "#ef4444" },
@@ -162,23 +168,41 @@ export default function AnalisaGejalaPage() {
   const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<SymptomAnalysisInput>>({});
   const [result, setResult] = useState<SymptomAnalysisResult | null>(null);
 
+  function updateForm<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
+
   async function handleAnalyze() {
+    const parsed = await validateSchema(symptomAnalysisSchema, form);
+    if (!parsed.success) {
+      setFieldErrors(parsed.errors as FieldErrors<SymptomAnalysisInput>);
+      setError(parsed.message);
+      setResult(null);
+      return;
+    }
+
     setLoading(true);
     setError("");
+    setFieldErrors({});
     setResult(null);
 
     try {
       const res = await fetch("/api/symptoms/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(parsed.data),
       });
 
       const payload = await res.json();
 
       if (!res.ok) {
+        if (payload?.details && typeof payload.details === "object") {
+          setFieldErrors(payload.details as FieldErrors<SymptomAnalysisInput>);
+        }
         throw new Error(payload.error || "Analisa gagal diproses.");
       }
 
@@ -221,11 +245,13 @@ export default function AnalisaGejalaPage() {
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Nama pasien</label>
-                    <NeuInput value={form.patientName} onChange={(e) => setForm({ ...form, patientName: e.target.value })} placeholder="Opsional" />
+                    <NeuInput value={form.patientName} onChange={(e) => updateForm("patientName", e.target.value)} placeholder="Opsional" />
+                    {fieldErrors.patientName ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.patientName}</p> : null}
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Umur</label>
-                    <NeuInput type="number" value={String(form.age)} onChange={(e) => setForm({ ...form, age: Number(e.target.value || 0) })} />
+                    <NeuInput type="number" value={String(form.age)} onChange={(e) => updateForm("age", Number(e.target.value || 0))} />
+                    {fieldErrors.age ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.age}</p> : null}
                   </div>
                 </div>
 
@@ -234,12 +260,13 @@ export default function AnalisaGejalaPage() {
                     <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Jenis kelamin</label>
                     <SegmentedField
                       value={form.sex}
-                      onChange={(value) => setForm({ ...form, sex: value })}
+                      onChange={(value) => updateForm("sex", value)}
                       options={[
                         { value: "female", label: "Perempuan", description: "Pasien wanita" },
                         { value: "male", label: "Laki-laki", description: "Pasien pria" },
                       ]}
                     />
+                    {fieldErrors.sex ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.sex}</p> : null}
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Status kehamilan</label>
@@ -252,7 +279,7 @@ export default function AnalisaGejalaPage() {
                         <button
                           key={item.value}
                           type="button"
-                          onClick={() => setForm({ ...form, pregnancyStatus: item.value as typeof form.pregnancyStatus })}
+                          onClick={() => updateForm("pregnancyStatus", item.value as typeof form.pregnancyStatus)}
                           className="rounded-2xl px-3 py-3 text-xs font-semibold transition-all"
                           style={form.pregnancyStatus === item.value ? {
                             background: "#4e6785",
@@ -268,18 +295,21 @@ export default function AnalisaGejalaPage() {
                         </button>
                       ))}
                     </div>
+                    {fieldErrors.pregnancyStatus ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.pregnancyStatus}</p> : null}
                   </div>
                 </div>
 
                 <div className="mt-4">
                   <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Keluhan utama</label>
-                  <NeuTextarea rows={4} value={form.chiefComplaint} onChange={(e) => setForm({ ...form, chiefComplaint: e.target.value })} placeholder="Contoh: gigi belakang kiri sakit berdenyut sejak 3 hari, makin sakit saat malam dan saat minum dingin" />
+                  <NeuTextarea rows={4} value={form.chiefComplaint} onChange={(e) => updateForm("chiefComplaint", e.target.value)} placeholder="Contoh: gigi belakang kiri sakit berdenyut sejak 3 hari, makin sakit saat malam dan saat minum dingin" />
+                  {fieldErrors.chiefComplaint ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.chiefComplaint}</p> : null}
                 </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Durasi keluhan</label>
-                    <NeuInput value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} placeholder="Misal: 2 hari, 1 minggu" />
+                    <NeuInput value={form.duration} onChange={(e) => updateForm("duration", e.target.value)} placeholder="Misal: 2 hari, 1 minggu" />
+                    {fieldErrors.duration ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.duration}</p> : null}
                   </div>
                   <div>
                     <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#4e6785]">
@@ -291,38 +321,39 @@ export default function AnalisaGejalaPage() {
                       min="0"
                       max="10"
                       value={form.painScale}
-                      onChange={(e) => setForm({ ...form, painScale: Number(e.target.value) })}
+                      onChange={(e) => updateForm("painScale", Number(e.target.value))}
                       className="w-full accent-[#FDACAC]"
                     />
+                    {fieldErrors.painScale ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.painScale}</p> : null}
                   </div>
                 </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <ToggleField label="Ada bengkak" checked={form.hasSwelling} onChange={(value) => setForm({ ...form, hasSwelling: value })} />
-                  <ToggleField label="Ada demam" checked={form.hasFever} onChange={(value) => setForm({ ...form, hasFever: value })} />
-                  <ToggleField label="Ada perdarahan" checked={form.hasBleeding} onChange={(value) => setForm({ ...form, hasBleeding: value })} />
-                  <ToggleField label="Bau mulut berat" checked={form.hasBadBreath} onChange={(value) => setForm({ ...form, hasBadBreath: value })} />
-                  <ToggleField label="Ada trauma atau benturan" checked={form.hasTrauma} onChange={(value) => setForm({ ...form, hasTrauma: value })} />
-                  <ToggleField label="Sulit membuka mulut" checked={form.hasDifficultyOpeningMouth} onChange={(value) => setForm({ ...form, hasDifficultyOpeningMouth: value })} />
-                  <ToggleField label="Sulit menelan" checked={form.hasDifficultySwallowing} onChange={(value) => setForm({ ...form, hasDifficultySwallowing: value })} />
-                  <ToggleField label="Ada nanah" checked={form.hasPus} onChange={(value) => setForm({ ...form, hasPus: value })} />
-                  <ToggleField label="Ngilu dingin atau manis" checked={form.hasToothSensitivity} onChange={(value) => setForm({ ...form, hasToothSensitivity: value })} />
+                  <ToggleField label="Ada bengkak" checked={form.hasSwelling} onChange={(value) => updateForm("hasSwelling", value)} />
+                  <ToggleField label="Ada demam" checked={form.hasFever} onChange={(value) => updateForm("hasFever", value)} />
+                  <ToggleField label="Ada perdarahan" checked={form.hasBleeding} onChange={(value) => updateForm("hasBleeding", value)} />
+                  <ToggleField label="Bau mulut berat" checked={form.hasBadBreath} onChange={(value) => updateForm("hasBadBreath", value)} />
+                  <ToggleField label="Ada trauma atau benturan" checked={form.hasTrauma} onChange={(value) => updateForm("hasTrauma", value)} />
+                  <ToggleField label="Sulit membuka mulut" checked={form.hasDifficultyOpeningMouth} onChange={(value) => updateForm("hasDifficultyOpeningMouth", value)} />
+                  <ToggleField label="Sulit menelan" checked={form.hasDifficultySwallowing} onChange={(value) => updateForm("hasDifficultySwallowing", value)} />
+                  <ToggleField label="Ada nanah" checked={form.hasPus} onChange={(value) => updateForm("hasPus", value)} />
+                  <ToggleField label="Ngilu dingin atau manis" checked={form.hasToothSensitivity} onChange={(value) => updateForm("hasToothSensitivity", value)} />
                 </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Alergi obat</label>
-                    <NeuInput value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} placeholder="Opsional" />
+                    <NeuInput value={form.allergies} onChange={(e) => updateForm("allergies", e.target.value)} placeholder="Opsional" />
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Obat yang sedang diminum</label>
-                    <NeuInput value={form.medications} onChange={(e) => setForm({ ...form, medications: e.target.value })} placeholder="Opsional" />
+                    <NeuInput value={form.medications} onChange={(e) => updateForm("medications", e.target.value)} placeholder="Opsional" />
                   </div>
                 </div>
 
                 <div className="mt-4">
                   <label className="mb-2 block text-sm font-semibold text-[#4e6785]">Catatan tambahan</label>
-                  <NeuTextarea rows={3} value={form.additionalNotes} onChange={(e) => setForm({ ...form, additionalNotes: e.target.value })} placeholder="Opsional" />
+                  <NeuTextarea rows={3} value={form.additionalNotes} onChange={(e) => updateForm("additionalNotes", e.target.value)} placeholder="Opsional" />
                 </div>
 
                 {error && (

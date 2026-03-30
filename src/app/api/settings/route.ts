@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { gsheet } from "@/lib/gsheet";
 import { auth } from "@/lib/auth";
+import { settingsSchema, validateSchema } from "@/lib/validators";
 
 /**
  * Google Sheets stores time values as Date objects serialized to ISO strings
@@ -74,8 +75,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    // Sanitize: ensure time fields are plain HH:mm strings
-    const sanitized = {
+    const sanitizedInput = {
       ...body,
       workHourStart: normalizeTimeStr(body.workHourStart, "08:00"),
       workHourEnd: normalizeTimeStr(body.workHourEnd, "16:00"),
@@ -84,6 +84,13 @@ export async function POST(req: NextRequest) {
       slotDurationMinutes: Number(body.slotDurationMinutes) || 30,
       services: Array.isArray(body.services) ? body.services : [],
     };
+
+    const parsed = await validateSchema(settingsSchema, sanitizedInput);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.message, details: parsed.errors }, { status: 400 });
+    }
+
+    const sanitized = parsed.data;
 
     // Write to MongoDB
     const db = await getDb();

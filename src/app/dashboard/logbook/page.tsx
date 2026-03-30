@@ -26,6 +26,12 @@ import {
   NeuSelect,
   NeuTextarea,
 } from "@/components/ui/neumorphism";
+import {
+  type FieldErrors,
+  type LogbookInput,
+  logbookSchema,
+  validateSchema,
+} from "@/lib/validators";
 
 interface LogbookEntry {
   id: string;
@@ -461,6 +467,8 @@ export default function LogbookPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [showDownload, setShowDownload] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<LogbookInput>>({});
 
   function todayLocal() {
     const d = new Date();
@@ -478,6 +486,11 @@ export default function LogbookPage() {
     competencyLevel: "observed" as "observed" | "assisted" | "performed",
     notes: "",
   });
+
+  function updateForm<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  }
 
   const fetchEntries = useCallback(async () => {
     try {
@@ -501,20 +514,36 @@ export default function LogbookPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const parsed = await validateSchema(logbookSchema, { ...form, koasId: "bunga" });
+    if (!parsed.success) {
+      setFieldErrors(parsed.errors as FieldErrors<LogbookInput>);
+      setFormError(parsed.message);
+      return;
+    }
+
     setSubmitting(true);
+    setFormError("");
+    setFieldErrors({});
     try {
       const res = await fetch("/api/logbook", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, koasId: "bunga" }),
+        body: JSON.stringify(parsed.data),
       });
       if (res.ok) {
         await fetchEntries();
         setShowForm(false);
         resetForm();
+      } else {
+        const payload = await res.json().catch(() => null);
+        if (payload?.details && typeof payload.details === "object") {
+          setFieldErrors(payload.details as FieldErrors<LogbookInput>);
+        }
+        setFormError(payload?.error || "Gagal simpan logbook");
       }
     } catch (err) {
       console.error(err);
+      setFormError("Gagal simpan logbook");
     }
     setSubmitting(false);
   }
@@ -534,6 +563,8 @@ export default function LogbookPage() {
   }
 
   function resetForm() {
+    setFormError("");
+    setFieldErrors({});
     setForm({
       date: todayLocal(),
       patientInitials: "",
@@ -681,20 +712,28 @@ export default function LogbookPage() {
               </NeuButton>
             </div>
 
+            {formError ? (
+              <div className="mb-4 rounded-2xl border border-[#FDACAC]/35 bg-[rgba(253,172,172,0.14)] px-4 py-3 text-sm font-medium text-[#bb6868]">
+                {formError}
+              </div>
+            ) : null}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">
                     <Calendar className="w-3.5 h-3.5 inline mr-1" /> Tanggal *
                   </label>
-                  <NeuInput type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+                  <NeuInput type="date" value={form.date} onChange={(e) => updateForm("date", e.target.value)} required />
+                  {fieldErrors.date ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.date}</p> : null}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">
                     <User className="w-3.5 h-3.5 inline mr-1" /> Inisial Pasien *
                   </label>
-                  <NeuInput type="text" value={form.patientInitials} onChange={(e) => setForm({ ...form, patientInitials: e.target.value })}
+                  <NeuInput type="text" value={form.patientInitials} onChange={(e) => updateForm("patientInitials", e.target.value)}
                     placeholder="Ny. S / Tn. A" required />
+                  {fieldErrors.patientInitials ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.patientInitials}</p> : null}
                 </div>
               </div>
 
@@ -703,28 +742,32 @@ export default function LogbookPage() {
                   <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">
                     <Stethoscope className="w-3.5 h-3.5 inline mr-1" /> Jenis Tindakan *
                   </label>
-                  <NeuSelect value={form.procedureType} onChange={(e) => setForm({ ...form, procedureType: e.target.value })} required>
+                  <NeuSelect value={form.procedureType} onChange={(e) => updateForm("procedureType", e.target.value)} required>
                     <option value="">Pilih tindakan...</option>
                     {procedureTypes.map((p) => <option key={p} value={p}>{p}</option>)}
                   </NeuSelect>
+                  {fieldErrors.procedureType ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.procedureType}</p> : null}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">Nomor Gigi</label>
-                  <NeuInput type="text" value={form.toothNumber} onChange={(e) => setForm({ ...form, toothNumber: e.target.value })}
+                  <NeuInput type="text" value={form.toothNumber} onChange={(e) => updateForm("toothNumber", e.target.value)}
                     placeholder="Contoh: 36, 11" />
+                  {fieldErrors.toothNumber ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.toothNumber}</p> : null}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">Diagnosis *</label>
-                <NeuInput type="text" value={form.diagnosis} onChange={(e) => setForm({ ...form, diagnosis: e.target.value })}
+                <NeuInput type="text" value={form.diagnosis} onChange={(e) => updateForm("diagnosis", e.target.value)}
                   placeholder="Contoh: Pulpitis irreversible" required />
+                {fieldErrors.diagnosis ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.diagnosis}</p> : null}
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">Tindakan / Treatment *</label>
-                <NeuTextarea rows={2} value={form.treatment} onChange={(e) => setForm({ ...form, treatment: e.target.value })}
+                <NeuTextarea rows={2} value={form.treatment} onChange={(e) => updateForm("treatment", e.target.value)}
                   placeholder="Jelaskan tindakan yang dilakukan..." required />
+                {fieldErrors.treatment ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.treatment}</p> : null}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -732,23 +775,26 @@ export default function LogbookPage() {
                   <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">
                     <GraduationCap className="w-3.5 h-3.5 inline mr-1" /> Pembimbing *
                   </label>
-                  <NeuInput type="text" value={form.supervisorName} onChange={(e) => setForm({ ...form, supervisorName: e.target.value })}
+                  <NeuInput type="text" value={form.supervisorName} onChange={(e) => updateForm("supervisorName", e.target.value)}
                     placeholder="Nama dosen pembimbing" required />
+                  {fieldErrors.supervisorName ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.supervisorName}</p> : null}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">Tingkat Kompetensi *</label>
-                  <NeuSelect value={form.competencyLevel} onChange={(e) => setForm({ ...form, competencyLevel: e.target.value as "observed" | "assisted" | "performed" })} required>
+                  <NeuSelect value={form.competencyLevel} onChange={(e) => updateForm("competencyLevel", e.target.value as "observed" | "assisted" | "performed")} required>
                     <option value="observed">Observasi (Mengamati)</option>
                     <option value="assisted">Asistensi (Membantu)</option>
                     <option value="performed">Mandiri (Melakukan)</option>
                   </NeuSelect>
+                  {fieldErrors.competencyLevel ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.competencyLevel}</p> : null}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-[#5D688A] mb-1.5">Catatan Tambahan</label>
-                <NeuTextarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                <NeuTextarea rows={2} value={form.notes} onChange={(e) => updateForm("notes", e.target.value)}
                   placeholder="Catatan tambahan (opsional)..." />
+                {fieldErrors.notes ? <p className="mt-1.5 text-xs font-medium text-[#bb6868]">{fieldErrors.notes}</p> : null}
               </div>
 
               <div className="flex gap-3 pt-2">

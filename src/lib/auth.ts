@@ -4,6 +4,7 @@ import { gsheet } from "@/lib/gsheet";
 import { getDb, COLLECTIONS } from "@/lib/mongodb";
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { authConfig } from "./auth.config";
+import { loginSchema, validateSchema } from "@/lib/validators";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AdminUser {
@@ -72,7 +73,6 @@ export async function verifyAdmin(email: string, password: string): Promise<Admi
 
 // ── NextAuth config ───────────────────────────────────────────────────────────
 // signIn / signOut are exported for use by server actions and other modules
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   providers: [
@@ -83,9 +83,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = (credentials?.email as string) ?? "";
-        const password = (credentials?.password as string) ?? "";
-        if (!email || !password) return null;
+        const parsed = await validateSchema(loginSchema, {
+          email: (credentials?.email as string) ?? "",
+          password: (credentials?.password as string) ?? "",
+        });
+        if (!parsed.success) return null;
+
+        const { email, password } = parsed.data;
 
         const admin = await verifyAdmin(email, password);
         if (!admin) return null;

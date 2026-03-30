@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSchedule, getWeekSchedules, setSchedule } from "@/lib/db/schedules";
-import { scheduleSchema } from "@/lib/validators";
+import { scheduleSchema, validateSchema } from "@/lib/validators";
 import { auth } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -46,9 +46,9 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const parsed = scheduleSchema.safeParse(body);
+    const parsed = await validateSchema(scheduleSchema, body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Data tidak valid", details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json({ error: "Data tidak valid", details: parsed.errors }, { status: 400 });
     }
 
     await setSchedule(parsed.data.date, parsed.data.slots);

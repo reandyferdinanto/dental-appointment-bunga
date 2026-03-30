@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listAppointments, createAppointment } from "@/lib/db/appointments";
 import { auth } from "@/lib/auth";
-import { appointmentSchema } from "@/lib/validators";
+import { appointmentSchema, validateSchema } from "@/lib/validators";
 import { applyRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function GET() {
@@ -44,10 +44,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const parsed = appointmentSchema.safeParse(body);
+    const parsed = await validateSchema(appointmentSchema, body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Data booking tidak valid", details: parsed.error.flatten() },
+        { error: "Data booking tidak valid", details: parsed.errors },
         {
           status: 400,
           headers: {

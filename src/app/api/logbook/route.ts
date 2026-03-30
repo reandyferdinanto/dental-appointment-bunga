@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listLogbookEntries, createLogbookEntry } from "@/lib/db/logbook";
 import { auth } from "@/lib/auth";
+import { logbookSchema, validateSchema } from "@/lib/validators";
 
 export async function GET() {
   try {
@@ -25,7 +26,12 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const result = await createLogbookEntry(body);
+    const parsed = await validateSchema(logbookSchema, body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.message, details: parsed.errors }, { status: 400 });
+    }
+
+    const result = await createLogbookEntry(parsed.data);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error(error);

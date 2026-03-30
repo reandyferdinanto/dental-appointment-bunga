@@ -2,6 +2,7 @@
   SymptomAnalysisInput,
   SymptomAnalysisResult,
   symptomAnalysisResultSchema,
+  validateSchemaSync,
 } from "@/lib/validators";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -233,56 +234,63 @@ export async function analyzeDentalSymptoms(input: SymptomAnalysisInput) {
   const model = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
   if (!apiKey) {
-    throw new Error("GROQ_API_KEY belum dikonfigurasi.");
-  }
-
-  const response = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      max_tokens: 1200,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Anda adalah AI triage gejala gigi yang hanya memberi edukasi awal dan prioritas tindakan, bukan diagnosis final.",
-        },
-        {
-          role: "user",
-          content: buildDentalPrompt(input),
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    let payload: unknown;
-
-    try {
-      payload = await response.json();
-    } catch {
-      payload = null;
-    }
-
-    throw formatProviderError(response, payload, model);
-  }
-
-  const payload = await response.json();
-  const text = payload?.choices?.[0]?.message?.content;
-
-  if (!text || typeof text !== "string") {
     return buildFallbackAnalysis(input);
   }
 
   try {
-    const parsed = JSON.parse(stripJsonFences(text));
-    const normalized = normalizeResultShape(parsed);
-    return symptomAnalysisResultSchema.parse(normalized);
+    const response = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_tokens: 1200,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Anda adalah AI triage gejala gigi yang hanya memberi edukasi awal dan prioritas tindakan, bukan diagnosis final.",
+          },
+          {
+            role: "user",
+            content: buildDentalPrompt(input),
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      let payload: unknown;
+
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      const providerError = formatProviderError(response, payload, model);
+      void providerError;
+      return buildFallbackAnalysis(input);
+    }
+
+    const payload = await response.json();
+    const text = payload?.choices?.[0]?.message?.content;
+
+    if (!text || typeof text !== "string") {
+      return buildFallbackAnalysis(input);
+    }
+
+    try {
+      const parsed = JSON.parse(stripJsonFences(text));
+      const normalized = normalizeResultShape(parsed);
+      const validated = validateSchemaSync(symptomAnalysisResultSchema, normalized);
+      return validated.success ? validated.data : buildFallbackAnalysis(input);
+    } catch {
+      return buildFallbackAnalysis(input);
+    }
   } catch {
     return buildFallbackAnalysis(input);
   }
